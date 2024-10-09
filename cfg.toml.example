@@ -1,0 +1,3 @@
+[esp32-landscape-weather]
+wifi_ssid = "my-wifi"
+wifi_psk = "supersecret"
