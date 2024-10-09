@@ -30,7 +30,7 @@ embassy = ["esp-idf-hal/embassy-sync", "esp-idf-hal/critical-section", "esp-idf-
 [dependencies]
 anyhow = "1.0.86"
 embedded-graphics = "0.8.1"
-epd-waveshare = { git = "https://github.com/caemor/epd-waveshare", features = ["graphics"] }
+epd-waveshare = { git = "https://github.com/caemor/epd-waveshare", rev = "1244f035", features = ["graphics"] }
 esp-idf-hal = { version = "0.44.1", default-features = false }
 esp-idf-svc = { version = "0.49", default-features = false }
 log = { version = "0.4", default-features = false }
