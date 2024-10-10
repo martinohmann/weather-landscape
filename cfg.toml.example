@@ -1,3 +1,4 @@
 [esp32-landscape-weather]
+deep_sleep_seconds = 600
 wifi_ssid = "my-wifi"
 wifi_psk = "supersecret"

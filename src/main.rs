@@ -17,7 +17,6 @@ use esp_idf_hal::prelude::*;
 use esp_idf_hal::spi::{self, SpiDeviceDriver, SpiDriverConfig};
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use log::info;
-use std::thread;
 use std::time::Duration;
 use wifi::connect_wifi;
 
@@ -27,6 +26,8 @@ pub struct Config {
     wifi_ssid: &'static str,
     #[default("")]
     wifi_psk: &'static str,
+    #[default(10)]
+    deep_sleep_seconds: u64,
 }
 
 fn main() -> Result<()> {
@@ -38,15 +39,21 @@ fn main() -> Result<()> {
 
     let mut led_pin = PinDriver::output(peripherals.pins.gpio2)?;
 
-    if let Err(err) = connect_wifi(
+    let wifi = match connect_wifi(
         CONFIG.wifi_ssid,
         CONFIG.wifi_psk,
         peripherals.modem,
         sysloop,
     ) {
-        led_pin.set_high()?;
-        bail!("Could not connect to Wi-Fi network: {:?}", err)
-    }
+        Ok(wifi) => wifi,
+        Err(err) => {
+            led_pin.set_high()?;
+            bail!("Could not connect to Wi-Fi network: {:?}", err)
+        }
+    };
+
+    info!("Disconnecting Wifi");
+    drop(wifi);
 
     info!("Configuring the E-Ink display...");
     let mut display = Display2in9::default();
@@ -76,21 +83,15 @@ fn main() -> Result<()> {
     let mut epd = Epd2in9::new(&mut device, busy_in, dc, rst, &mut delay, None)?;
     info!("E-Ink display init completed!");
 
-    loop {
-        info!("Draw text");
-        display.clear(Color::White)?;
-        draw_text(&mut display, "PEBKAC!", 0, 0);
-        epd.update_frame(&mut device, display.buffer(), &mut delay)?;
-        epd.display_frame(&mut device, &mut delay)?;
+    info!("Draw text");
+    display.clear(Color::White)?;
+    draw_text(&mut display, "PEBKAC!", 0, 0);
+    epd.update_frame(&mut device, display.buffer(), &mut delay)?;
+    epd.display_frame(&mut device, &mut delay)?;
 
-        led_pin.set_high()?;
-        thread::sleep(Duration::from_secs(3));
+    enter_deep_sleep(Duration::from_secs(CONFIG.deep_sleep_seconds));
 
-        info!("Hello, world!");
-
-        led_pin.set_low()?;
-        thread::sleep(Duration::from_millis(300));
-    }
+    unreachable!("sleeping");
 }
 
 fn draw_text(display: &mut Display2in9, text: &str, x: i32, y: i32) {
@@ -103,4 +104,9 @@ fn draw_text(display: &mut Display2in9, text: &str, x: i32, y: i32) {
     let text_style = TextStyleBuilder::new().baseline(Baseline::Top).build();
 
     let _ = Text::with_text_style(text, Point::new(x, y), style, text_style).draw(display);
+}
+
+fn enter_deep_sleep(sleep_time: Duration) {
+    info!("Entering deep sleep");
+    unsafe { esp_idf_sys::esp_deep_sleep(sleep_time.as_micros() as u64) }
 }
