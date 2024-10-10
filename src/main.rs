@@ -17,8 +17,8 @@ use esp_idf_hal::gpio::{AnyIOPin, Gpio2, PinDriver};
 use esp_idf_hal::prelude::*;
 use esp_idf_hal::spi::{self, SpiDeviceDriver, SpiDriverConfig};
 use esp_idf_svc::eventloop::EspSystemEventLoop;
-use log::info;
-use std::time::Duration;
+use log::{error, info};
+use std::{thread, time::Duration};
 
 #[toml_cfg::toml_config]
 pub struct Config {
@@ -54,7 +54,9 @@ fn main() -> Result<()> {
         }
     };
 
-    http::get(CONFIG.data_url)?;
+    if let Err(err) = http::get(CONFIG.data_url) {
+        error!("Failed to request image data: {err}")
+    }
 
     info!("Disconnecting Wifi");
     drop(wifi);
@@ -90,6 +92,13 @@ fn main() -> Result<()> {
     info!("Draw text");
     display.clear(Color::White)?;
     draw_text(&mut display, "PEBKAC!", 0, 0);
+    epd.update_frame(&mut device, display.buffer(), &mut delay)?;
+    epd.display_frame(&mut device, &mut delay)?;
+
+    thread::sleep(Duration::from_secs(10));
+
+    info!("Clearing display");
+    display.clear(Color::White)?;
     epd.update_frame(&mut device, display.buffer(), &mut delay)?;
     epd.display_frame(&mut device, &mut delay)?;
 
