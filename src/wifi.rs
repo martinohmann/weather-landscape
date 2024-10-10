@@ -12,7 +12,7 @@ pub fn connect_wifi(
     pass: &str,
     modem: impl Peripheral<P = Modem> + 'static,
     sysloop: EspSystemEventLoop,
-) -> Result<()> {
+) -> Result<BlockingWifi<EspWifi<'static>>> {
     let mut auth_method = AuthMethod::WPA2Personal;
     if ssid.is_empty() {
         bail!("Missing WiFi name")
@@ -21,35 +21,8 @@ pub fn connect_wifi(
         auth_method = AuthMethod::None;
         info!("Wifi password is empty");
     }
-    let mut esp_wifi = EspWifi::new(modem, sysloop.clone(), None)?;
-
-    let mut wifi = BlockingWifi::wrap(&mut esp_wifi, sysloop)?;
-
-    wifi.set_configuration(&Configuration::Client(ClientConfiguration::default()))?;
-
-    info!("Starting wifi...");
-
-    wifi.start()?;
-
-    info!("Scanning...");
-
-    let ap_infos = wifi.scan()?;
-
-    let ours = ap_infos.into_iter().find(|a| a.ssid == ssid);
-
-    let channel = if let Some(ours) = ours {
-        info!(
-            "Found configured access point {} on channel {}",
-            ssid, ours.channel
-        );
-        Some(ours.channel)
-    } else {
-        info!(
-            "Configured access point {} not found during scanning, will go with unknown channel",
-            ssid
-        );
-        None
-    };
+    let esp_wifi = EspWifi::new(modem, sysloop.clone(), None)?;
+    let mut wifi = BlockingWifi::wrap(esp_wifi, sysloop)?;
 
     wifi.set_configuration(&Configuration::Client(ClientConfiguration {
         ssid: ssid
@@ -58,10 +31,13 @@ pub fn connect_wifi(
         password: pass
             .try_into()
             .expect("Could not parse the given password into WiFi config"),
-        channel,
         auth_method,
         ..Default::default()
     }))?;
+
+    info!("Starting wifi...");
+
+    wifi.start()?;
 
     info!("Connecting wifi...");
 
@@ -75,5 +51,5 @@ pub fn connect_wifi(
 
     info!("Wifi DHCP info: {:?}", ip_info);
 
-    Ok(())
+    Ok(wifi)
 }

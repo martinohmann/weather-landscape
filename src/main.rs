@@ -13,9 +13,9 @@ use epd_waveshare::{
 };
 use esp_idf_hal::delay::Ets;
 use esp_idf_hal::gpio::{AnyIOPin, Gpio2, PinDriver};
+use esp_idf_hal::prelude::*;
 use esp_idf_hal::spi::{self, SpiDeviceDriver, SpiDriverConfig};
 use esp_idf_svc::eventloop::EspSystemEventLoop;
-use esp_idf_svc::hal::prelude::Peripherals;
 use log::info;
 use std::thread;
 use std::time::Duration;
@@ -60,7 +60,7 @@ fn main() -> Result<()> {
     let dc = PinDriver::output(peripherals.pins.gpio13)?;
     let rst = PinDriver::output(peripherals.pins.gpio12)?;
 
-    let config = spi::config::Config::new().baudrate(112500.into());
+    let config = spi::config::Config::new().baudrate(4_000_000.into());
     let mut device = SpiDeviceDriver::new_single(
         spi,
         sclk,
@@ -73,26 +73,12 @@ fn main() -> Result<()> {
 
     let mut delay = Ets;
 
-    thread::sleep(Duration::from_secs(3));
     let mut epd = Epd2in9::new(&mut device, busy_in, dc, rst, &mut delay, None)?;
     info!("E-Ink display init completed!");
 
     loop {
-        info!("Paint it black");
-        display.clear(Color::Black)?;
-        epd.update_frame(&mut device, display.buffer(), &mut delay)?;
-        epd.display_frame(&mut device, &mut delay)?;
-
-        thread::sleep(Duration::from_secs(3));
-
-        info!("Make it white");
+        info!("Draw text");
         display.clear(Color::White)?;
-        epd.update_frame(&mut device, display.buffer(), &mut delay)?;
-        epd.display_frame(&mut device, &mut delay)?;
-
-        thread::sleep(Duration::from_secs(3));
-
-        info!("Draw the text");
         draw_text(&mut display, "PEBKAC!", 0, 0);
         epd.update_frame(&mut device, display.buffer(), &mut delay)?;
         epd.display_frame(&mut device, &mut delay)?;
@@ -110,8 +96,8 @@ fn main() -> Result<()> {
 fn draw_text(display: &mut Display2in9, text: &str, x: i32, y: i32) {
     let style = MonoTextStyleBuilder::new()
         .font(&embedded_graphics::mono_font::ascii::FONT_10X20)
-        .text_color(Color::White)
-        .background_color(Color::Black)
+        .text_color(Color::Black)
+        .background_color(Color::White)
         .build();
 
     let text_style = TextStyleBuilder::new().baseline(Baseline::Top).build();
