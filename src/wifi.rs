@@ -7,7 +7,7 @@ use esp_idf_svc::{
 };
 use log::info;
 
-pub fn connect_wifi(
+pub fn connect(
     ssid: &str,
     pass: &str,
     modem: impl Peripheral<P = Modem> + 'static,

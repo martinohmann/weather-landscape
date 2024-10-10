@@ -1,4 +1,5 @@
 [esp32-landscape-weather]
+data_url = "http://192.168.123.456:8080/data"
 deep_sleep_seconds = 600
 wifi_ssid = "my-wifi"
 wifi_psk = "supersecret"

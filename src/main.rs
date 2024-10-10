@@ -1,3 +1,4 @@
+mod http;
 mod wifi;
 
 use anyhow::{bail, Result};
@@ -18,7 +19,6 @@ use esp_idf_hal::spi::{self, SpiDeviceDriver, SpiDriverConfig};
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use log::info;
 use std::time::Duration;
-use wifi::connect_wifi;
 
 #[toml_cfg::toml_config]
 pub struct Config {
@@ -28,6 +28,8 @@ pub struct Config {
     wifi_psk: &'static str,
     #[default(10)]
     deep_sleep_seconds: u64,
+    #[default("")]
+    data_url: &'static str,
 }
 
 fn main() -> Result<()> {
@@ -39,7 +41,7 @@ fn main() -> Result<()> {
 
     let mut led_pin = PinDriver::output(peripherals.pins.gpio2)?;
 
-    let wifi = match connect_wifi(
+    let wifi = match wifi::connect(
         CONFIG.wifi_ssid,
         CONFIG.wifi_psk,
         peripherals.modem,
@@ -51,6 +53,8 @@ fn main() -> Result<()> {
             bail!("Could not connect to Wi-Fi network: {:?}", err)
         }
     };
+
+    http::get(CONFIG.data_url)?;
 
     info!("Disconnecting Wifi");
     drop(wifi);
