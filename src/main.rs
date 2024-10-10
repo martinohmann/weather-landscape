@@ -94,8 +94,6 @@ fn main() -> Result<()> {
     epd.display_frame(&mut device, &mut delay)?;
 
     enter_deep_sleep(Duration::from_secs(CONFIG.deep_sleep_seconds));
-
-    unreachable!("sleeping");
 }
 
 fn draw_text(display: &mut Display2in9, text: &str, x: i32, y: i32) {
@@ -110,7 +108,7 @@ fn draw_text(display: &mut Display2in9, text: &str, x: i32, y: i32) {
     let _ = Text::with_text_style(text, Point::new(x, y), style, text_style).draw(display);
 }
 
-fn enter_deep_sleep(sleep_time: Duration) {
+fn enter_deep_sleep(sleep_time: Duration) -> ! {
     info!("Entering deep sleep");
     unsafe { esp_idf_sys::esp_deep_sleep(sleep_time.as_micros() as u64) }
 }
