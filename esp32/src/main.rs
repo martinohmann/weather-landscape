@@ -1,7 +1,7 @@
 mod http;
 mod wifi;
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use embedded_graphics::{pixelcolor::BinaryColor, prelude::*};
 use epd_waveshare::{
     buffer_len,
@@ -13,7 +13,7 @@ use esp_idf_hal::gpio::{AnyIOPin, Gpio2, PinDriver};
 use esp_idf_hal::prelude::*;
 use esp_idf_hal::spi::{self, SpiDeviceDriver, SpiDriverConfig};
 use esp_idf_svc::eventloop::EspSystemEventLoop;
-use log::info;
+use log::{error, info};
 use std::{thread, time::Duration};
 use tinybmp::Bmp;
 
@@ -33,9 +33,17 @@ fn main() -> Result<()> {
     esp_idf_svc::sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
 
-    let peripherals = Peripherals::take().unwrap();
+    let peripherals = Peripherals::take()?;
     let sysloop = EspSystemEventLoop::take()?;
 
+    if let Err(err) = run(peripherals, sysloop) {
+        error!("{err}");
+    }
+
+    enter_deep_sleep(Duration::from_secs(CONFIG.deep_sleep_seconds));
+}
+
+fn run(peripherals: Peripherals, sysloop: EspSystemEventLoop) -> Result<()> {
     let mut led_pin = PinDriver::output(peripherals.pins.gpio2)?;
 
     let wifi = match wifi::connect(
@@ -83,7 +91,8 @@ fn main() -> Result<()> {
     let mut display = Display2in9::default();
     info!("E-Ink display init completed!");
 
-    let bmp = Bmp::<BinaryColor>::from_slice(&image_data).unwrap();
+    let bmp = Bmp::<BinaryColor>::from_slice(&image_data)
+        .map_err(|err| anyhow!("failed to parse BMP: {err:?}"))?;
     let bmp_header = bmp.as_raw().header();
 
     info!("Drawing image");
@@ -106,7 +115,7 @@ fn main() -> Result<()> {
     epd.update_frame(&mut device, display.buffer(), &mut delay)?;
     epd.display_frame(&mut device, &mut delay)?;
 
-    enter_deep_sleep(Duration::from_secs(CONFIG.deep_sleep_seconds));
+    Ok(())
 }
 
 fn enter_deep_sleep(sleep_time: Duration) -> ! {
