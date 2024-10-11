@@ -1,8 +1,8 @@
 use actix_web::{get, middleware, App, HttpServer};
 
-#[get("/hello")]
-async fn hello() -> &'static str {
-    "Hello world!"
+#[get("/healthz")]
+async fn healthz() -> &'static str {
+    "ok"
 }
 
 #[actix_web::main]
@@ -13,7 +13,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-            .service(hello)
+            .service(healthz)
             .wrap(middleware::Logger::default())
     })
     .bind(("127.0.0.1", 8080))?
