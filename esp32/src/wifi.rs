@@ -19,7 +19,7 @@ pub fn connect(
     }
     if pass.is_empty() {
         auth_method = AuthMethod::None;
-        info!("Wifi password is empty");
+        info!("WiFi password is empty");
     }
     let esp_wifi = EspWifi::new(modem, sysloop.clone(), None)?;
     let mut wifi = BlockingWifi::wrap(esp_wifi, sysloop)?;
@@ -35,11 +35,11 @@ pub fn connect(
         ..Default::default()
     }))?;
 
-    info!("Starting wifi...");
+    info!("Starting WiFi...");
 
     wifi.start()?;
 
-    info!("Connecting wifi...");
+    info!("Connecting WiFi...");
 
     wifi.connect()?;
 
@@ -49,7 +49,7 @@ pub fn connect(
 
     let ip_info = wifi.wifi().sta_netif().get_ip_info()?;
 
-    info!("Wifi DHCP info: {:?}", ip_info);
+    info!("WiFi DHCP info: {ip_info:?}");
 
     Ok(wifi)
 }
