@@ -4,13 +4,16 @@ use embedded_svc::{
     http::{client::Client, Method},
     utils::io,
 };
-use esp_idf_svc::http::client::{Configuration, EspHttpConnection};
+use esp_idf_svc::{
+    http::client::{Configuration, EspHttpConnection},
+    sys::esp_crt_bundle_attach,
+};
 use log::info;
 
 pub fn fetch_image_data(url: &str) -> Result<Vec<u8>> {
     let connection = EspHttpConnection::new(&Configuration {
         use_global_ca_store: true,
-        crt_bundle_attach: Some(esp_idf_svc::sys::esp_crt_bundle_attach),
+        crt_bundle_attach: Some(esp_crt_bundle_attach),
         ..Default::default()
     })?;
     let mut client = Client::wrap(connection);
@@ -18,9 +21,7 @@ pub fn fetch_image_data(url: &str) -> Result<Vec<u8>> {
     info!("Requesting {url}");
 
     let headers = [("accept", "image/bmp")];
-    let request = client.request(Method::Get, url, &headers)?;
-
-    let response = request.submit()?;
+    let response = client.request(Method::Get, url, &headers)?.submit()?;
     let status = response.status();
 
     if status != 200 {
