@@ -9,46 +9,47 @@ use log::info;
 
 pub fn connect(
     ssid: &str,
-    pass: &str,
+    password: &str,
     modem: impl Peripheral<P = Modem> + 'static,
     sysloop: EspSystemEventLoop,
 ) -> Result<BlockingWifi<EspWifi<'static>>> {
     let mut auth_method = AuthMethod::WPA2Personal;
+
     if ssid.is_empty() {
         bail!("Missing WiFi name")
     }
-    if pass.is_empty() {
+
+    if password.is_empty() {
         auth_method = AuthMethod::None;
         info!("WiFi password is empty");
     }
+
     let esp_wifi = EspWifi::new(modem, sysloop.clone(), None)?;
     let mut wifi = BlockingWifi::wrap(esp_wifi, sysloop)?;
 
-    wifi.set_configuration(&Configuration::Client(ClientConfiguration {
+    let config = Configuration::Client(ClientConfiguration {
         ssid: ssid
             .try_into()
             .expect("Could not parse the given SSID into WiFi config"),
-        password: pass
+        password: password
             .try_into()
             .expect("Could not parse the given password into WiFi config"),
         auth_method,
         ..Default::default()
-    }))?;
+    });
+
+    wifi.set_configuration(&config)?;
 
     info!("Starting WiFi...");
-
     wifi.start()?;
 
     info!("Connecting WiFi...");
-
     wifi.connect()?;
 
     info!("Waiting for DHCP lease...");
-
     wifi.wait_netif_up()?;
 
     let ip_info = wifi.wifi().sta_netif().get_ip_info()?;
-
     info!("WiFi DHCP info: {ip_info:?}");
 
     Ok(wifi)
