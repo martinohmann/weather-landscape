@@ -11,7 +11,7 @@ use epd_waveshare::{
 use esp_idf_hal::delay::Ets;
 use esp_idf_hal::gpio::{AnyIOPin, Gpio2, PinDriver};
 use esp_idf_hal::prelude::*;
-use esp_idf_hal::spi::{self, SpiDeviceDriver, SpiDriverConfig};
+use esp_idf_hal::spi::{config::Config as SpiConfig, SpiDeviceDriver, SpiDriverConfig};
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use log::{error, info};
 use std::{thread, time::Duration};
@@ -74,7 +74,6 @@ fn run(peripherals: Peripherals, sysloop: EspSystemEventLoop) -> Result<()> {
     let dc = PinDriver::output(peripherals.pins.gpio13)?;
     let rst = PinDriver::output(peripherals.pins.gpio12)?;
 
-    let config = spi::config::Config::new().baudrate(4_000_000.into());
     let mut device = SpiDeviceDriver::new_single(
         spi,
         sclk,
@@ -82,7 +81,7 @@ fn run(peripherals: Peripherals, sysloop: EspSystemEventLoop) -> Result<()> {
         Option::<Gpio2>::None,
         Option::<AnyIOPin>::None,
         &SpiDriverConfig::default(),
-        &config,
+        &SpiConfig::default(),
     )?;
 
     let mut delay = Ets;
