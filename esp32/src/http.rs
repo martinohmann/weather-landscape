@@ -23,10 +23,8 @@ pub fn fetch_image_data(url: &str) -> Result<Vec<u8>> {
     let response = request.submit()?;
     let status = response.status();
 
-    info!("Got response code {}", status);
-
     if status != 200 {
-        bail!("Received response with unexpected status: {}", status)
+        bail!("Expected response code 200, got {status}");
     }
 
     // Add some room for the BMP header.
