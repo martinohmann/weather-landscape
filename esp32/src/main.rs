@@ -1,7 +1,7 @@
 mod http;
 mod wifi;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use embedded_graphics::{pixelcolor::BinaryColor, prelude::*};
 use epd_waveshare::{
     buffer_len,
