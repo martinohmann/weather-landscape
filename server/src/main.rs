@@ -14,21 +14,21 @@ async fn healthz() -> &'static str {
 #[get("/image.bmp")]
 async fn image_bmp() -> Result<HttpResponse> {
     let renderer = Renderer::new();
-    let img = renderer.render_image()?;
+    let image = renderer.render_image()?;
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType(mime::IMAGE_BMP))
-        .body(render::bmp_bytes(&img)?))
+        .body(render::bmp_bytes(&image)?))
 }
 
 #[get("/image.epd")]
 async fn image_epd() -> Result<HttpResponse> {
     let renderer = Renderer::new();
-    let img = renderer.render_image()?;
+    let image = renderer.render_image()?;
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType(mime::APPLICATION_OCTET_STREAM))
-        .body(render::epd_bytes(&img)?))
+        .body(render::epd_bytes(&image)?))
 }
 
 #[actix_web::main]

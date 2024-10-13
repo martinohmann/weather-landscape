@@ -24,25 +24,31 @@ impl Renderer {
 
     pub fn render_image(&self) -> Result<Image> {
         // This is relatively stupid right now.
-        let mut img = RgbImage::from_fn(HEIGHT, WIDTH, |x, y| {
-            if x % 2 == 0 || y % 2 == 0 {
-                BLACK
-            } else {
-                WHITE
-            }
-        });
+        let mut image =
+            RgbImage::from_fn(
+                HEIGHT,
+                WIDTH,
+                |x, y| {
+                    if (x + y) % 2 == 0 {
+                        BLACK
+                    } else {
+                        WHITE
+                    }
+                },
+            );
 
         let overlay =
             image::load_from_memory(include_bytes!("../data/sprites/house_00.png"))?.into_rgb8();
 
-        imageops::overlay(&mut img, &overlay, 10, 10);
-        let img = imageops::rotate90(&img);
+        imageops::overlay(&mut image, &overlay, 10, 10);
 
-        Ok(img)
+        Ok(image)
     }
 }
 
 pub fn epd_bytes(image: &Image) -> Result<Vec<u8>> {
+    // The image needs to be rotated for the e-paper display.
+    let image = imageops::rotate90(image);
     let buf_len = buffer_len(WIDTH as usize, HEIGHT as usize);
     let mut buf = vec![Color::White.get_byte_value(); buf_len];
     let mut display =
