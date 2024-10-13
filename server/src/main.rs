@@ -18,7 +18,7 @@ async fn image_bmp() -> Result<HttpResponse> {
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType(mime::IMAGE_BMP))
-        .body(render::bmp_bytes(&image)?))
+        .body(image.bmp_bytes()?))
 }
 
 #[get("/image.epd")]
@@ -28,7 +28,7 @@ async fn image_epd() -> Result<HttpResponse> {
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType(mime::APPLICATION_OCTET_STREAM))
-        .body(render::epd_bytes(&image)?))
+        .body(image.epd_bytes()?))
 }
 
 #[actix_web::main]
