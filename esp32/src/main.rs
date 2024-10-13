@@ -106,12 +106,6 @@ fn draw_image(display: &mut Display2in9, image_data: &[u8]) -> Result<()> {
     let bmp = Bmp::<BinaryColor>::from_slice(image_data)
         .map_err(|err| anyhow!("Failed to parse BMP: {err:?}"))?;
     let bmp_header = bmp.as_raw().header();
-    let image_data_len = bmp_header.image_data_len as usize;
-    let buffer_size = display_buffer_size();
-
-    if image_data_len > buffer_size {
-        bail!("Expected <= {buffer_size} image bytes, got {image_data_len}");
-    }
 
     if bmp_header.image_size.width > bmp_header.image_size.height {
         display.set_rotation(DisplayRotation::Rotate90);
