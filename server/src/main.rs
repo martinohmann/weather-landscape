@@ -1,8 +1,10 @@
-use actix_web::{get, http::header::ContentType, middleware, App, HttpResponse, HttpServer};
+mod error;
+mod render;
 
-// Use some random test images for now.
-const PORTRAIT_IMAGE: &[u8] = include_bytes!("../../data/test_portait.bmp");
-const LANDSCAPE_IMAGE: &[u8] = include_bytes!("../../data/test_landscape.bmp");
+use actix_web::{
+    get, http::header::ContentType, middleware, App, HttpResponse, HttpServer, Result,
+};
+use render::Renderer;
 
 #[get("/healthz")]
 async fn healthz() -> &'static str {
@@ -10,16 +12,23 @@ async fn healthz() -> &'static str {
 }
 
 #[get("/image.bmp")]
-async fn image() -> HttpResponse {
-    let body = if rand::random() {
-        PORTRAIT_IMAGE
-    } else {
-        LANDSCAPE_IMAGE
-    };
+async fn image_bmp() -> Result<HttpResponse> {
+    let renderer = Renderer::new();
+    let img = renderer.render_image()?;
 
-    HttpResponse::Ok()
+    Ok(HttpResponse::Ok()
         .insert_header(ContentType(mime::IMAGE_BMP))
-        .body(body)
+        .body(render::bmp_bytes(&img)?))
+}
+
+#[get("/image.epd")]
+async fn image_epd() -> Result<HttpResponse> {
+    let renderer = Renderer::new();
+    let img = renderer.render_image()?;
+
+    Ok(HttpResponse::Ok()
+        .insert_header(ContentType(mime::APPLICATION_OCTET_STREAM))
+        .body(render::epd_bytes(&img)?))
 }
 
 #[actix_web::main]
@@ -30,7 +39,8 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-            .service(image)
+            .service(image_bmp)
+            .service(image_epd)
             .service(healthz)
             .wrap(middleware::Logger::default())
     })

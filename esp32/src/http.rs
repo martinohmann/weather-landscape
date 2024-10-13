@@ -20,7 +20,7 @@ pub fn fetch_image_data(url: &str) -> Result<Vec<u8>> {
 
     info!("Requesting {url}");
 
-    let headers = [("accept", "image/bmp")];
+    let headers = [("accept", "application/octet-stream")];
     let response = client.request(Method::Get, url, &headers)?.submit()?;
     let status = response.status();
 
@@ -28,8 +28,7 @@ pub fn fetch_image_data(url: &str) -> Result<Vec<u8>> {
         bail!("Expected response code 200, got {status}");
     }
 
-    // Add some room for the BMP header.
-    let mut buf = vec![0; display_buffer_size() + 1024];
+    let mut buf = vec![0; display_buffer_size()];
     let len = io::try_read_full(response, &mut buf).map_err(|err| err.0)?;
 
     info!("Received {len} bytes");

@@ -1,12 +1,12 @@
 mod http;
 mod wifi;
 
-use anyhow::{anyhow, Context, Result};
-use embedded_graphics::{pixelcolor::BinaryColor, prelude::*};
+use anyhow::{Context, Result};
+use embedded_graphics::prelude::*;
 use epd_waveshare::{
     buffer_len,
     epd2in9_v2::{Display2in9, Epd2in9, HEIGHT, WIDTH},
-    prelude::{Color, DisplayRotation, WaveshareDisplay},
+    prelude::{Color, WaveshareDisplay},
 };
 use esp_idf_hal::delay::Ets;
 use esp_idf_hal::gpio::{AnyIOPin, Gpio2, PinDriver};
@@ -15,7 +15,6 @@ use esp_idf_hal::spi::{config::Config as SpiConfig, SpiDeviceDriver, SpiDriverCo
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use log::{error, info};
 use std::{thread, time::Duration};
-use tinybmp::Bmp;
 
 #[toml_cfg::toml_config]
 pub struct Config {
@@ -81,15 +80,13 @@ fn run(peripherals: Peripherals, sysloop: EspSystemEventLoop) -> Result<()> {
     let mut epd = Epd2in9::new(&mut spi, busy_in, dc, rst, &mut delay, None)?;
     info!("E-Ink display init completed!");
 
-    let mut display = Display2in9::default();
-
     info!("Drawing image");
-    draw_image(&mut display, &image_data)?;
-    epd.update_and_display_frame(&mut spi, display.buffer(), &mut delay)?;
+    epd.update_and_display_frame(&mut spi, &image_data, &mut delay)?;
 
     thread::sleep(Duration::from_secs(10));
 
     info!("Clearing display");
+    let mut display = Display2in9::default();
     display.clear(Color::White)?;
     epd.update_and_display_frame(&mut spi, display.buffer(), &mut delay)?;
 
@@ -100,23 +97,6 @@ fn run(peripherals: Peripherals, sysloop: EspSystemEventLoop) -> Result<()> {
 fn enter_deep_sleep(sleep_time: Duration) -> ! {
     info!("Entering deep sleep");
     unsafe { esp_idf_sys::esp_deep_sleep(sleep_time.as_micros() as u64) }
-}
-
-fn draw_image(display: &mut Display2in9, image_data: &[u8]) -> Result<()> {
-    let bmp = Bmp::<BinaryColor>::from_slice(image_data)
-        .map_err(|err| anyhow!("Failed to parse BMP: {err:?}"))?;
-    let bmp_header = bmp.as_raw().header();
-
-    if bmp_header.image_size.width > bmp_header.image_size.height {
-        display.set_rotation(DisplayRotation::Rotate90);
-    }
-
-    display.draw_iter(
-        bmp.pixels()
-            .map(|Pixel(position, color)| Pixel(position, Color::from(color).inverse())),
-    )?;
-
-    Ok(())
 }
 
 const fn display_buffer_size() -> usize {
