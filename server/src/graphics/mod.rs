@@ -1,3 +1,6 @@
+mod sprites;
+
+use self::sprites::sprite;
 use crate::error::Result;
 use anyhow::anyhow;
 use embedded_graphics::prelude::*;
@@ -7,11 +10,12 @@ use epd_waveshare::{
     epd2in9_v2::{HEIGHT, WIDTH},
     graphics::VarDisplay,
 };
-use image::{imageops, ImageBuffer, ImageFormat, Rgba, RgbaImage};
+use image::{imageops, ImageFormat, Rgba, RgbaImage};
 use std::io::Cursor;
 
 const BLACK: Rgba<u8> = Rgba([0, 0, 0, 255]);
 const WHITE: Rgba<u8> = Rgba([255, 255, 255, 255]);
+const TRANSPARENT: Rgba<u8> = Rgba([0, 0, 0, 0]);
 
 pub struct Renderer {}
 
@@ -21,31 +25,28 @@ impl Renderer {
     }
 
     pub fn render_image(&self) -> Result<Image> {
-        // This is relatively stupid right now.
-        let mut image =
-            RgbaImage::from_fn(
-                HEIGHT,
-                WIDTH,
-                |x, y| {
-                    if (x + y) % 2 == 0 {
-                        BLACK
-                    } else {
-                        WHITE
-                    }
-                },
-            );
+        let mut image = RgbaImage::from_fn(HEIGHT, WIDTH, |_, _| WHITE);
 
-        let overlay =
-            image::load_from_memory(include_bytes!("../data/sprites/house_00.png"))?.into_rgba8();
+        // Just some randomly placed sprites for now.
+        sprite("house_00").overlay(&mut image, 10, 10);
+        sprite("house_01").overlay(&mut image, 30, 30);
+        sprite("house_02").overlay(&mut image, 50, 50);
+        sprite("digit_01").overlay(&mut image, 1, 1);
+        sprite("digit_00").overlay(&mut image, 5, 1);
 
-        imageops::overlay(&mut image, &overlay, 10, 10);
+        sprite("sun_00").overlay(&mut image, 100, 10);
+        sprite("moon_00").overlay(&mut image, 150, 10);
+        sprite("cloud_10").overlay(&mut image, 190, 10);
+
+        sprite("flower_00").overlay(&mut image, 130, 50);
+        sprite("tree_03").overlay(&mut image, 170, 50);
 
         Ok(Image(image))
     }
 }
 
 #[derive(Debug)]
-pub struct Image(ImageBuffer<Rgba<u8>, Vec<u8>>);
+pub struct Image(RgbaImage);
 
 impl Image {
     pub fn epd_bytes(&self) -> Result<Vec<u8>> {
