@@ -1,7 +1,7 @@
 mod sprites;
 
 use self::sprites::sprite;
-use crate::error::Result;
+use crate::{error::Result, weather::Forecast};
 use anyhow::anyhow;
 use embedded_graphics::prelude::*;
 use epd_waveshare::{
@@ -11,6 +11,7 @@ use epd_waveshare::{
     graphics::VarDisplay,
 };
 use image::{imageops, ImageFormat, Rgba, RgbaImage};
+use log::debug;
 use std::io::Cursor;
 
 const BLACK: Rgba<u8> = Rgba([0, 0, 0, 255]);
@@ -24,7 +25,9 @@ impl Renderer {
         Renderer {}
     }
 
-    pub fn render_image(&self) -> Result<Image> {
+    pub fn render_image(&self, forecast: &Forecast) -> Result<Image> {
+        debug!("rendering weather forecast {forecast:?}");
+
         let mut image = RgbaImage::from_fn(HEIGHT, WIDTH, |_, _| WHITE);
 
         // Just some randomly placed sprites for now.

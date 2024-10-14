@@ -21,3 +21,4 @@ jiff = "0.1.13"
 sunrise = "1.0.1"
 config = "0.14.0"
 serde = { version = "1.0.210", features = ["derive"] }
+tokio = { version = "1.40.0", features = ["full"] }
