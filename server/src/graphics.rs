@@ -7,11 +7,11 @@ use epd_waveshare::{
     epd2in9_v2::{HEIGHT, WIDTH},
     graphics::VarDisplay,
 };
-use image::{imageops, ImageBuffer, ImageFormat, Rgb, RgbImage};
+use image::{imageops, ImageBuffer, ImageFormat, Rgba, RgbaImage};
 use std::io::Cursor;
 
-const BLACK: Rgb<u8> = Rgb([0, 0, 0]);
-const WHITE: Rgb<u8> = Rgb([255, 255, 255]);
+const BLACK: Rgba<u8> = Rgba([0, 0, 0, 255]);
+const WHITE: Rgba<u8> = Rgba([255, 255, 255, 255]);
 
 pub struct Renderer {}
 
@@ -23,7 +23,7 @@ impl Renderer {
     pub fn render_image(&self) -> Result<Image> {
         // This is relatively stupid right now.
         let mut image =
-            RgbImage::from_fn(
+            RgbaImage::from_fn(
                 HEIGHT,
                 WIDTH,
                 |x, y| {
@@ -36,7 +36,7 @@ impl Renderer {
             );
 
         let overlay =
-            image::load_from_memory(include_bytes!("../data/sprites/house_00.png"))?.into_rgb8();
+            image::load_from_memory(include_bytes!("../data/sprites/house_00.png"))?.into_rgba8();
 
         imageops::overlay(&mut image, &overlay, 10, 10);
 
@@ -45,7 +45,7 @@ impl Renderer {
 }
 
 #[derive(Debug)]
-pub struct Image(ImageBuffer<Rgb<u8>, Vec<u8>>);
+pub struct Image(ImageBuffer<Rgba<u8>, Vec<u8>>);
 
 impl Image {
     pub fn epd_bytes(&self) -> Result<Vec<u8>> {
