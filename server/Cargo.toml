@@ -19,3 +19,5 @@ monsoon = "0.1.1"
 tower = { version = "0.5.1", features = ["limit", "util"] }
 jiff = "0.1.13"
 sunrise = "1.0.1"
+config = "0.14.0"
+serde = { version = "1.0.210", features = ["derive"] }

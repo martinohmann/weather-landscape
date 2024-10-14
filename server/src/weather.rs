@@ -1,6 +1,6 @@
 use crate::error::Result;
 use jiff::{Timestamp, Zoned};
-use monsoon::{Monsoon, Params, Response};
+use monsoon::{body::Body, Monsoon, Params, Response};
 use std::time::Duration;
 use tower::limit::{ConcurrencyLimit, RateLimit};
 use tower::{Service, ServiceBuilder, ServiceExt};
@@ -76,4 +76,6 @@ impl Weather {
 
         Ok((sunrise, sunset))
     }
+
+    fn build_forecast(&self) {}
 }

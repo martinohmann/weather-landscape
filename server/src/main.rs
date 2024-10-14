@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+mod config;
 mod error;
 mod graphics;
 mod weather;
@@ -7,6 +8,7 @@ mod weather;
 use actix_web::{
     get, http::header::ContentType, middleware, App, HttpResponse, HttpServer, Result,
 };
+use config::AppConfig;
 use graphics::Renderer;
 
 #[get("/healthz")]
@@ -37,6 +39,8 @@ async fn image_epd() -> Result<HttpResponse> {
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+
+    let _config = AppConfig::load().await?;
 
     log::info!("starting HTTP server at http://0.0.0.0:8080");
 

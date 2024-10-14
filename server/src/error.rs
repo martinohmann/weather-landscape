@@ -10,6 +10,8 @@ pub enum Error {
     Monsoon(#[from] monsoon::Error),
     #[error("Jiff error: {0}")]
     Jiff(#[from] jiff::Error),
+    #[error("Config error: {0}")]
+    Config(#[from] config::ConfigError),
     #[error(transparent)]
     Anyhow(#[from] anyhow::Error),
 }
