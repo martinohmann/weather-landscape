@@ -1,10 +1,10 @@
 mod error;
-mod render;
+mod graphics;
 
 use actix_web::{
     get, http::header::ContentType, middleware, App, HttpResponse, HttpServer, Result,
 };
-use render::Renderer;
+use graphics::Renderer;
 
 #[get("/healthz")]
 async fn healthz() -> &'static str {
