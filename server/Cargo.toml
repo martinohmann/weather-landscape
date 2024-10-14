@@ -1,6 +1,7 @@
 [package]
 name = "esp32-landscape-weather-server"
 version = "0.1.0"
+repository = "https://github.com/martinohmann/esp32-landscape-weather"
 edition = "2021"
 
 [dependencies]
@@ -14,3 +15,7 @@ image = "0.25.2"
 anyhow = "1.0.89"
 thiserror = "1.0.64"
 embedded-graphics = "0.8.1"
+monsoon = "0.1.1"
+tower = { version = "0.5.1", features = ["limit", "util"] }
+jiff = "0.1.13"
+sunrise = "1.0.1"

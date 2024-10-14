@@ -6,6 +6,10 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 pub enum Error {
     #[error("Image error: {0}")]
     Image(#[from] image::ImageError),
+    #[error("Weather error: {0}")]
+    Monsoon(#[from] monsoon::Error),
+    #[error("Jiff error: {0}")]
+    Jiff(#[from] jiff::Error),
     #[error(transparent)]
     Anyhow(#[from] anyhow::Error),
 }

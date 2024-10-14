@@ -1,5 +1,8 @@
+#![allow(dead_code)]
+
 mod error;
 mod graphics;
+mod weather;
 
 use actix_web::{
     get, http::header::ContentType, middleware, App, HttpResponse, HttpServer, Result,
@@ -32,7 +35,7 @@ async fn image_epd() -> Result<HttpResponse> {
 }
 
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> anyhow::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     log::info!("starting HTTP server at http://0.0.0.0:8080");
