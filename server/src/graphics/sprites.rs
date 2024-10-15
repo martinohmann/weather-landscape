@@ -2,6 +2,7 @@ use super::{BLACK, TRANSPARENT, WHITE};
 use crate::error::Result;
 use image::{imageops, RgbaImage};
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::sync::OnceLock;
 
 macro_rules! load_sprite {
@@ -105,5 +106,13 @@ impl Sprite {
 
     pub(super) fn overlay(&self, image: &mut RgbaImage, x: i64, y: i64) {
         imageops::overlay(image, &self.0, x, y);
+    }
+}
+
+impl Deref for Sprite {
+    type Target = RgbaImage;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }

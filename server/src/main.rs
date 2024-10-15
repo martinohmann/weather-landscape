@@ -10,7 +10,6 @@ use actix_web::{
     get, http::header::ContentType, middleware, web::Data, App, HttpResponse, HttpServer, Result,
 };
 use config::AppConfig;
-use graphics::Renderer;
 use weather::Weather;
 
 #[get("/healthz")]
@@ -21,8 +20,7 @@ async fn healthz() -> &'static str {
 #[get("/image.bmp")]
 async fn image_bmp(weather: Data<Weather>) -> Result<HttpResponse> {
     let forecast = weather.forecast().await?;
-    let renderer = Renderer::new();
-    let image = renderer.render_image(&forecast)?;
+    let image = graphics::render(&forecast)?;
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType(mime::IMAGE_BMP))
@@ -32,8 +30,7 @@ async fn image_bmp(weather: Data<Weather>) -> Result<HttpResponse> {
 #[get("/image.epd")]
 async fn image_epd(weather: Data<Weather>) -> Result<HttpResponse> {
     let forecast = weather.forecast().await?;
-    let renderer = Renderer::new();
-    let image = renderer.render_image(&forecast)?;
+    let image = graphics::render(&forecast)?;
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType(mime::APPLICATION_OCTET_STREAM))
