@@ -1,13 +1,17 @@
 use crate::error::Result;
 use crate::sun;
 use jiff::{Timestamp, ToSpan};
-use monsoon::body::TimeSeries;
-use monsoon::{body::Body, Monsoon, Params, Response};
+use monsoon::{
+    body::{Body, TimeSeries},
+    Monsoon, Params, Response,
+};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use tower::limit::{ConcurrencyLimit, RateLimit};
-use tower::{Service, ServiceBuilder, ServiceExt};
+use tower::{
+    limit::{ConcurrencyLimit, RateLimit},
+    Service, ServiceBuilder, ServiceExt,
+};
 
 // Met.no requires to identify oneself via user-agent header. This is best practice anyways.
 const USER_AGENT: &str = concat!(

@@ -1,4 +1,5 @@
 mod sprites;
+mod util;
 
 use self::sprites::sprite;
 use crate::{error::Result, weather::Forecast};
@@ -13,6 +14,7 @@ use epd_waveshare::{
 use image::{imageops, ImageFormat, Rgba, RgbaImage};
 use log::debug;
 use std::io::Cursor;
+use util::timestamp_to_column;
 
 const BLACK: Rgba<u8> = Rgba([0, 0, 0, 255]);
 const WHITE: Rgba<u8> = Rgba([255, 255, 255, 255]);
@@ -30,19 +32,21 @@ impl Renderer {
 
         let mut image = RgbaImage::from_fn(HEIGHT, WIDTH, |_, _| WHITE);
 
+        let sunrise_col = timestamp_to_column(forecast.timestamp, forecast.next_sunrise);
+        let sunset_col = timestamp_to_column(forecast.timestamp, forecast.next_sunset);
+
+        debug!("placing sunrise at {sunrise_col} and sunset at {sunset_col}");
+
+        sprite("moon_00").overlay(&mut image, sunset_col.min(HEIGHT as i64 - 30), 0);
+        sprite("sun_00").overlay(&mut image, sunrise_col.min(HEIGHT as i64 - 30), 0);
+
         // Just some randomly placed sprites for now.
-        sprite("house_00").overlay(&mut image, 10, 10);
-        sprite("house_01").overlay(&mut image, 30, 30);
-        sprite("house_02").overlay(&mut image, 50, 50);
-        sprite("digit_01").overlay(&mut image, 1, 1);
-        sprite("digit_00").overlay(&mut image, 5, 1);
-
-        sprite("sun_00").overlay(&mut image, 100, 10);
-        sprite("moon_00").overlay(&mut image, 150, 10);
-        sprite("cloud_10").overlay(&mut image, 190, 10);
-
-        sprite("flower_00").overlay(&mut image, 130, 50);
-        sprite("tree_03").overlay(&mut image, 170, 50);
+        sprite("house_00").overlay(&mut image, 10, 80);
+        sprite("digit_01").overlay(&mut image, 1, 100);
+        sprite("digit_00").overlay(&mut image, 5, 100);
+        sprite("cloud_10").overlay(&mut image, 190, 0);
+        sprite("flower_00").overlay(&mut image, 130, 80);
+        sprite("tree_03").overlay(&mut image, 170, 80);
 
         Ok(Image(image))
     }
