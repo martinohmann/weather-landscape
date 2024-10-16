@@ -203,7 +203,6 @@ struct RenderContext<'a> {
     current_temperature: f64,
     min_temperature: f64,
     max_temperature: f64,
-    temperature_range: f64,
     // Controls how many pixels to render per degree celsius.
     degrees_per_pixel: f64,
 }
@@ -254,7 +253,6 @@ impl<'a> RenderContext<'a> {
             current_temperature,
             min_temperature,
             max_temperature,
-            temperature_range,
             degrees_per_pixel,
         })
     }
