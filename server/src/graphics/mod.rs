@@ -1,6 +1,6 @@
 mod sprites;
 
-use self::sprites::sprite;
+use self::sprites::{sprite, spriten};
 use crate::{
     error::{Error, Result},
     weather::Forecast,
@@ -135,10 +135,34 @@ impl Canvas {
 
     fn draw_digits(&mut self, x: i64, y: i64, value: i64) {
         debug!("drawing digits for value {value} at ({x}, {y})");
-        // @TODO(mohmann): draw actual digits.
-        for i in 0..5 {
-            self.draw_pixel(x, y + i);
+
+        let sign = if value >= 0 {
+            sprite("digit_10") // plus
+        } else {
+            sprite("digit_11") // minus
+        };
+
+        // We're assuming that air temperatures values have at most 2 digits, anything else would
+        // be highly concerning.
+        let value = value.abs();
+        let d1 = value / 10;
+        let d2 = value % 10;
+
+        let digits = if value < 10 { 1 } else { 2 };
+        let digit_width = sign.width() as i64;
+
+        // Center the digits, excluding the sign because it looks better.
+        let mut offset = -(digits * (digit_width + 1) / 2) - digit_width;
+
+        sign.overlay(&mut self.img, x + offset, y);
+        offset += digit_width + 1;
+
+        if d1 > 0 {
+            spriten("digit", d1 as _).overlay(&mut self.img, x + offset, y);
+            offset += digit_width + 1;
         }
+
+        spriten("digit", d2 as _).overlay(&mut self.img, x + offset, y);
     }
 
     fn draw_pixel(&mut self, x: i64, y: i64) {
