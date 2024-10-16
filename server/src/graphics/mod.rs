@@ -27,7 +27,6 @@ const SECONDS_DAY: f64 = 24.0 * 60.0 * 60.0;
 const BLACK: Rgba<u8> = Rgba([0, 0, 0, 255]);
 const WHITE: Rgba<u8> = Rgba([255, 255, 255, 255]);
 const TRANSPARENT: Rgba<u8> = Rgba([0, 0, 0, 0]);
-const X_OFFSET_DEFAULT: i64 = 32;
 
 pub fn render(forecast: &Forecast) -> Result<Canvas> {
     // We'll flip width and height here. The e-paper display works in portrait mode but we'd like
@@ -60,6 +59,7 @@ impl Canvas {
     fn draw_house(&mut self, ctx: &RenderContext) {
         let house = sprite("house_00");
         let y = ctx.degrees_to_y(ctx.current_temperature);
+        let house_width = house.width() as i64;
         let house_y = y - house.height() as i64;
 
         debug!("placing house at (0, {house_y})");
@@ -67,14 +67,14 @@ impl Canvas {
 
         debug!(
             "drawing current temperature line from (0, {y}) to ({}, {y})",
-            ctx.x_offset - 1
+            house_width - 1
         );
-        for x in 0..ctx.x_offset {
+        for x in 0..house_width {
             self.draw_pixel(x, y);
         }
 
         self.draw_digits(
-            ctx.x_offset / 2,
+            house_width / 2,
             y + 5,
             ctx.current_temperature.round() as i64,
         );
@@ -94,10 +94,11 @@ impl Canvas {
     }
 
     fn draw_temperature(&mut self, ctx: &RenderContext) {
+        let house_width = sprite("house_00").width() as i64;
         let num_forecasts = ctx.forecast.hourly_forecast.len() - 1;
-        let x_step = (self.width() as i64 - ctx.x_offset) / num_forecasts as i64;
+        let x_step = (self.width() as i64 - house_width) / num_forecasts as i64;
 
-        let mut x = ctx.x_offset;
+        let mut x = house_width;
         let mut points: Vec<(f32, f32)> = Vec::new();
         let mut max_temperature_drawn = false;
         let mut min_temperature_drawn = false;
@@ -194,8 +195,6 @@ struct RenderContext<'a> {
     forecast: &'a Forecast,
     width: u32,
     height: u32,
-    // X-axis offset for the weather graph.
-    x_offset: i64,
     // Y-axis offset for the weather graph.
     y_offset: i64,
     y_step: i64,
@@ -247,7 +246,6 @@ impl<'a> RenderContext<'a> {
             forecast,
             width,
             height,
-            x_offset: X_OFFSET_DEFAULT,
             y_step,
             y_offset,
             current_temperature,
