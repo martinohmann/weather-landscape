@@ -1,5 +1,7 @@
+mod curve;
 mod sprites;
 
+use self::curve::fit_curve_to_points;
 use self::sprites::{sprite, spriten};
 use crate::{
     error::{Error, Result},
@@ -13,8 +15,9 @@ use epd_waveshare::{
     epd2in9_v2::{HEIGHT, WIDTH},
     graphics::VarDisplay,
 };
+use flo_curves::Coord2;
 use image::{imageops, ImageFormat, Rgba, RgbaImage};
-use imageproc::drawing::draw_line_segment_mut;
+use indexmap::IndexMap;
 use jiff::Timestamp;
 use log::debug;
 use std::{
@@ -37,9 +40,17 @@ pub fn render(forecast: &Forecast) -> Result<Canvas> {
 
     debug!("rendering context {ctx:?}");
 
+    let line_points = ctx.compute_line_points();
+
+    debug!("{} line points: {:?}", line_points.len(), line_points);
+
     canvas.draw_house(&ctx);
     canvas.draw_sun_and_moon(&ctx);
-    canvas.draw_temperature(&ctx);
+    canvas.draw_temperatures(&ctx);
+
+    for (x, y) in line_points {
+        canvas.draw_pixel(x, y);
+    }
 
     Ok(canvas)
 }
@@ -59,22 +70,13 @@ impl Canvas {
     fn draw_house(&mut self, ctx: &RenderContext) {
         let house = sprite("house_00");
         let y = ctx.degrees_to_y(ctx.current_temperature);
-        let house_width = house.width() as i64;
         let house_y = y - house.height() as i64;
 
         debug!("placing house at (0, {house_y})");
         house.overlay(&mut self.img, 0, house_y);
 
-        debug!(
-            "drawing current temperature line from (0, {y}) to ({}, {y})",
-            house_width - 1
-        );
-        for x in 0..house_width {
-            self.draw_pixel(x, y);
-        }
-
         self.draw_digits(
-            house_width / 2,
+            ctx.x_offset / 2,
             y + 5,
             ctx.current_temperature.round() as i64,
         );
@@ -93,22 +95,14 @@ impl Canvas {
         moon.overlay(&mut self.img, moon_x, 0);
     }
 
-    fn draw_temperature(&mut self, ctx: &RenderContext) {
-        let house_width = sprite("house_00").width() as i64;
-        let num_forecasts = ctx.forecast.hourly_forecast.len() - 1;
-        let x_step = (self.width() as i64 - house_width) / num_forecasts as i64;
-
-        let mut x = house_width;
-        let mut points: Vec<(f32, f32)> = Vec::new();
+    fn draw_temperatures(&mut self, ctx: &RenderContext) {
+        let mut x = ctx.x_offset;
         let mut max_temperature_drawn = false;
         let mut min_temperature_drawn = false;
 
         for hourly_forecast in ctx.forecast.hourly_forecast.iter() {
             let temperature = hourly_forecast.air_temperature;
             let y = ctx.degrees_to_y(temperature);
-
-            debug!("drawing temperature {temperature} at ({x}, {y})");
-            self.draw_pixel(x, y);
 
             if temperature == ctx.max_temperature && !max_temperature_drawn {
                 self.draw_digits(x, y + 5, temperature.round() as i64);
@@ -118,18 +112,7 @@ impl Canvas {
                 min_temperature_drawn = true;
             }
 
-            points.push((x as f32, y as f32));
-
-            x += x_step;
-        }
-
-        // Connect the temperature points with lines.
-        // @TODO(mohmann): use bezier curves instead to make the landscape look nicer.
-        for w in points.windows(2) {
-            let p0 = w[0];
-            let p1 = w[1];
-            debug!("drawing line from {p0:?} to {p1:?}");
-            draw_line_segment_mut(&mut self.img, p0, p1, BLACK);
+            x += ctx.x_step;
         }
     }
 
@@ -219,6 +202,9 @@ struct RenderContext<'a> {
     forecast: &'a Forecast,
     width: u32,
     height: u32,
+    // X-axis offset for the weather graph.
+    x_offset: i64,
+    x_step: i64,
     // Y-axis offset for the weather graph.
     y_offset: i64,
     y_step: i64,
@@ -232,8 +218,10 @@ struct RenderContext<'a> {
 
 impl<'a> RenderContext<'a> {
     fn create(forecast: &'a Forecast, width: u32, height: u32) -> Result<Self> {
-        let y_step = (height as f64 * 0.39).round() as i64;
+        let x_offset = sprite("house_00").width() as i64;
+        let x_step = (width as i64 - x_offset) / (forecast.hourly_forecast.len() as i64 - 1);
         let y_offset = (height / 2) as i64;
+        let y_step = (height as f64 * 0.39).round() as i64;
 
         let temperatures: Vec<f64> = forecast
             .hourly_forecast
@@ -270,6 +258,8 @@ impl<'a> RenderContext<'a> {
             forecast,
             width,
             height,
+            x_step,
+            x_offset,
             y_step,
             y_offset,
             current_temperature,
@@ -290,5 +280,29 @@ impl<'a> RenderContext<'a> {
     fn degrees_to_y(&self, temperature: f64) -> i64 {
         let n = ((temperature - self.min_temperature) / self.degrees_per_pixel).round() as i64;
         self.y_offset + self.y_step - n
+    }
+
+    fn compute_line_points(&self) -> IndexMap<i64, i64> {
+        let forecasts = &self.forecast.hourly_forecast;
+        let mut points: Vec<Coord2> = Vec::with_capacity(forecasts.len() + self.x_offset as usize);
+
+        let y = self.degrees_to_y(self.current_temperature);
+
+        // Points for the line below the house.
+        for x in 0..self.x_offset {
+            points.push(Coord2(x as f64, y as f64));
+        }
+
+        let mut x = self.x_offset;
+
+        // Points for the temperatures.
+        for forecast in forecasts.iter() {
+            let y = self.degrees_to_y(forecast.air_temperature);
+            points.push(Coord2(x as f64, y as f64));
+            x += self.x_step;
+        }
+
+        // The heavy lifting.
+        fit_curve_to_points(&points, 0.1).into_iter().collect()
     }
 }
