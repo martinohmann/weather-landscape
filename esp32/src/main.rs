@@ -83,7 +83,7 @@ fn run(peripherals: Peripherals, sysloop: EspSystemEventLoop) -> Result<()> {
     info!("Drawing image");
     epd.update_and_display_frame(&mut spi, &image_data, &mut delay)?;
 
-    thread::sleep(Duration::from_secs(10));
+    thread::sleep(Duration::from_secs(60));
 
     info!("Clearing display");
     let mut display = Display2in9::default();
