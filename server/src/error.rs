@@ -1,4 +1,5 @@
 use actix_web::error::ResponseError;
+use std::fmt::Display;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -14,6 +15,14 @@ pub enum Error {
     Config(#[from] config::ConfigError),
     #[error(transparent)]
     Anyhow(#[from] anyhow::Error),
+    #[error("{0}")]
+    Message(String),
+}
+
+impl Error {
+    pub fn new(msg: impl Display) -> Self {
+        Error::Message(msg.to_string())
+    }
 }
 
 impl ResponseError for Error {}

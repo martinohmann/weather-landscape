@@ -1,6 +1,6 @@
 use crate::error::Result;
 use crate::sun;
-use jiff::{Timestamp, ToSpan};
+use jiff::Timestamp;
 use monsoon::{
     body::{Body, TimeSeries},
     Monsoon, Params, Response,
@@ -95,8 +95,6 @@ pub struct Forecast {
 impl Forecast {
     fn from_body(body: &Body) -> Result<Forecast> {
         let timestamp = Timestamp::now();
-        let next_day = timestamp.checked_add(24.hours())?;
-
         let latitude = body.geometry.coordinates.latitude;
         let longitude = body.geometry.coordinates.longitude;
 
@@ -107,7 +105,11 @@ impl Forecast {
             .properties
             .timeseries
             .iter()
-            .filter(|series| next_day.as_second() >= series.time.timestamp())
+            // Only take the forecast of every 4th hour.
+            .step_by(4)
+            // Take 7 forecasts * 4h = 28h to be able to draw the temperature graph until the edge
+            // of the screen towards the forecast from now+28h.
+            .take(7)
             .map(HourlyForecast::from_time_series)
             .collect::<Result<Vec<_>>>()?;
 
@@ -122,33 +124,38 @@ impl Forecast {
 
 #[derive(Debug, Clone, Default)]
 pub struct HourlyForecast {
-    pub air_temperature: Option<f64>,
-    pub cloud_area_fraction: Option<f64>,
-    pub precipitation_amount: Option<f64>,
+    pub air_temperature: f64,
+    pub cloud_area_fraction: f64,
+    pub precipitation_amount: f64,
     pub timestamp: Timestamp,
-    pub wind_from_direction: Option<f64>,
-    pub wind_speed: Option<f64>,
+    pub wind_from_direction: f64,
+    pub wind_speed: f64,
 }
 
 impl HourlyForecast {
     fn from_time_series(series: &TimeSeries) -> Result<HourlyForecast> {
         let timestamp = Timestamp::from_second(series.time.timestamp())?;
 
-        let precipitation_amount = series.data.next_1_hours.as_ref().and_then(|next| {
-            next.details
-                .as_ref()
-                .and_then(|details| details.precipitation_amount)
-        });
+        let precipitation_amount = series
+            .data
+            .next_1_hours
+            .as_ref()
+            .and_then(|next| {
+                next.details
+                    .as_ref()
+                    .and_then(|details| details.precipitation_amount)
+            })
+            .unwrap_or_default();
 
         let details = &series.data.instant.details;
 
         Ok(HourlyForecast {
-            air_temperature: details.air_temperature,
-            cloud_area_fraction: details.cloud_area_fraction,
+            air_temperature: details.air_temperature.unwrap_or_default(),
+            cloud_area_fraction: details.cloud_area_fraction.unwrap_or_default(),
             precipitation_amount,
             timestamp,
-            wind_from_direction: details.wind_from_direction,
-            wind_speed: details.wind_speed,
+            wind_from_direction: details.wind_from_direction.unwrap_or_default(),
+            wind_speed: details.wind_speed.unwrap_or_default(),
         })
     }
 }
