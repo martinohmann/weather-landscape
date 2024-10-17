@@ -18,8 +18,10 @@ use epd_waveshare::{
 use flo_curves::Coord2;
 use image::{imageops, ImageFormat, Rgba, RgbaImage};
 use indexmap::IndexMap;
-use jiff::Timestamp;
+use jiff::civil::time;
+use jiff::{SignedDuration, Timestamp, Zoned};
 use log::debug;
+use sprites::Sprite;
 use std::{
     cmp::Ordering,
     io::Cursor,
@@ -47,6 +49,7 @@ pub fn render(forecast: &Forecast) -> Result<Canvas> {
     canvas.draw_house(&ctx);
     canvas.draw_sun_and_moon(&ctx);
     canvas.draw_temperatures(&ctx);
+    canvas.draw_midday_and_midnight(&ctx, &line_points);
 
     for (x, y) in line_points {
         canvas.draw_pixel(x, y);
@@ -95,7 +98,40 @@ impl Canvas {
         moon.overlay(&mut self.img, moon_x, 0);
     }
 
+    fn draw_midday_and_midnight(&mut self, ctx: &RenderContext, line_points: &IndexMap<i64, i64>) {
+        self.draw_flower(ctx, line_points, sprite("flower_00"), 0);
+        self.draw_flower(ctx, line_points, sprite("flower_01"), 12);
+    }
+
+    fn draw_flower(
+        &mut self,
+        ctx: &RenderContext,
+        line_points: &IndexMap<i64, i64>,
+        sprite: &Sprite,
+        hour: i8,
+    ) {
+        let now = Zoned::now();
+        let mut time = now.with().time(time(hour, 0, 0, 0)).build().unwrap();
+        if time < now {
+            time = time.checked_add(SignedDuration::from_hours(24)).unwrap();
+        }
+
+        let x = ctx.timestamp_to_x(time.timestamp(), 0);
+
+        if x < ctx.x_offset {
+            // We don't want it to overlap with the house, or do we?
+            return;
+        }
+
+        if let Some(y) = line_points.get(&x) {
+            let y = *y - sprite.height() as i64;
+            sprite.overlay(&mut self.img, x, y);
+        }
+    }
+
     fn draw_temperatures(&mut self, ctx: &RenderContext) {
+        // @TODO(mohmann): Handle the case when min and/or max temperature are equal to the current
+        // temperature. Don't draw them in this case.
         let mut x = ctx.x_offset;
         let mut max_temperature_drawn = false;
         let mut min_temperature_drawn = false;
