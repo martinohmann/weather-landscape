@@ -74,7 +74,7 @@ impl Canvas {
 
     fn draw_house(&mut self, ctx: &RenderContext) {
         let house = sprite("house_00");
-        let y = ctx.degrees_to_y(ctx.current_temperature);
+        let y = ctx.temperature_to_y(ctx.current_temperature);
         let house_y = y - house.height() as i64;
 
         debug!("placing house at (0, {house_y})");
@@ -145,7 +145,7 @@ impl Canvas {
             .find(|(_, dp)| dp.air_temperature == temperature)
         {
             let x = ctx.x_offset + (ctx.x_step * (i as i64 + 1));
-            let y = ctx.degrees_to_y(data_point.air_temperature);
+            let y = ctx.temperature_to_y(data_point.air_temperature);
             self.draw_digits(x, y + 5, temperature.round() as i64);
         }
     }
@@ -320,7 +320,7 @@ impl<'a> RenderContext<'a> {
         ((delta / SECONDS_DAY) * width).round() as i64 + self.x_offset
     }
 
-    fn degrees_to_y(&self, temperature: f64) -> i64 {
+    fn temperature_to_y(&self, temperature: f64) -> i64 {
         let delta = temperature - self.min_temperature;
         self.y_offset - (delta / self.degrees_per_pixel).round() as i64
     }
@@ -329,7 +329,7 @@ impl<'a> RenderContext<'a> {
         let forecasts = &self.data.forecasts;
         let mut points: Vec<Coord2> = Vec::with_capacity(forecasts.len() + self.x_offset as usize);
 
-        let y = self.degrees_to_y(self.current_temperature);
+        let y = self.temperature_to_y(self.current_temperature);
 
         // Points for the line below the house.
         for x in 0..self.x_offset {
@@ -340,7 +340,7 @@ impl<'a> RenderContext<'a> {
 
         // Points for the temperatures.
         for forecast in forecasts.iter() {
-            let y = self.degrees_to_y(forecast.air_temperature);
+            let y = self.temperature_to_y(forecast.air_temperature);
             points.push(Coord2(x as f64, y as f64));
             x += self.x_step;
         }
