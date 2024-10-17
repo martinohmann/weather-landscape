@@ -73,7 +73,11 @@ impl Canvas {
     }
 
     fn draw_house(&mut self, ctx: &RenderContext) {
-        let house = sprite("house_00");
+        let house = if ctx.now < ctx.next_sunrise && ctx.next_sunrise < ctx.next_sunset {
+            sprite("house_01") // Night time, lights out!
+        } else {
+            sprite("house_00")
+        };
         let y = ctx.temperature_to_y(ctx.current_temperature);
         let house_y = y - house.height() as i64;
 
