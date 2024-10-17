@@ -54,6 +54,9 @@ pub fn render(forecast: &Forecast) -> Result<Canvas> {
     for (x, y) in line_points {
         canvas.draw_pixel(x, y);
     }
+    //
+    // Call the new render function that includes drawing trees
+    ctx.render_with_trees(&mut canvas)?;
 
     Ok(canvas)
 }
@@ -217,6 +220,46 @@ impl Canvas {
             .write_to(&mut Cursor::new(&mut buf), ImageFormat::Bmp)?;
         Ok(buf)
     }
+    fn draw_wind_trees(&mut self, ctx: &RenderContext) {
+        let mut x = ctx.x_offset;
+
+        for hourly_forecast in ctx.forecast.hourly_forecast.iter() {
+            let y = ctx.degrees_to_y(hourly_forecast.air_temperature);
+            let wind_speed = hourly_forecast.wind_speed;
+            let wind_direction = hourly_forecast.wind_from_direction;
+
+            // Determine wind sprite type based on wind direction
+            let sprite_name = if wind_direction >= 45.0 && wind_direction < 135.0 {
+                "east"
+            } else if wind_direction >= 135.0 && wind_direction < 225.0 {
+                "palm"
+            } else if wind_direction >= 225.0 && wind_direction < 315.0 {
+                "pine"
+            } else {
+                "tree"
+            };
+
+            // Determine sprite index (00 - 03) based on wind speed
+            let sprite_index = if wind_speed < 5.0 {
+                0
+            } else if wind_speed < 10.0 {
+                1
+            } else if wind_speed < 20.0 {
+                2
+            } else {
+                3
+            };
+
+            // Get the correct sprite
+            let sprite = spriten(sprite_name, sprite_index);
+
+            // Draw the sprite on the canvas
+            let tree_y = y - sprite.height() as i64;
+            sprite.overlay(&mut self.img, x, tree_y);
+
+            x += ctx.x_step;
+        }
+    }
 }
 
 impl Deref for Canvas {
@@ -340,5 +383,21 @@ impl<'a> RenderContext<'a> {
 
         // The heavy lifting.
         fit_curve_to_points(&points, 0.1).into_iter().collect()
+    }
+    // Modify the render function to call draw_wind_trees
+    pub fn render_with_trees(&self, canvas: &mut Canvas) -> Result<()> {
+        let line_points = self.compute_line_points();
+
+        canvas.draw_house(self);
+        canvas.draw_sun_and_moon(self);
+        canvas.draw_temperatures(self);
+        canvas.draw_midday_and_midnight(self, &line_points);
+        canvas.draw_wind_trees(self);
+
+        for (x, y) in line_points {
+            canvas.draw_pixel(x, y);
+        }
+
+        Ok(())
     }
 }
