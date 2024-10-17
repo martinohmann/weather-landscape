@@ -19,8 +19,8 @@ async fn healthz() -> &'static str {
 
 #[get("/image.bmp")]
 async fn image_bmp(weather: Data<Weather>) -> Result<HttpResponse> {
-    let forecast = weather.forecast().await?;
-    let image = graphics::render(&forecast)?;
+    let data = weather.get().await?;
+    let image = graphics::render(&data)?;
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType(mime::IMAGE_BMP))
@@ -29,8 +29,8 @@ async fn image_bmp(weather: Data<Weather>) -> Result<HttpResponse> {
 
 #[get("/image.epd")]
 async fn image_epd(weather: Data<Weather>) -> Result<HttpResponse> {
-    let forecast = weather.forecast().await?;
-    let image = graphics::render(&forecast)?;
+    let data = weather.get().await?;
+    let image = graphics::render(&data)?;
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType(mime::APPLICATION_OCTET_STREAM))

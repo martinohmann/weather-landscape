@@ -1,5 +1,4 @@
-use crate::error::Result;
-use crate::sun;
+use crate::error::{Error, Result};
 use jiff::Timestamp;
 use monsoon::{
     body::{Body, TimeSeries},
@@ -32,7 +31,7 @@ struct Inner {
 }
 
 impl Inner {
-    async fn forecast(&mut self) -> Result<Forecast> {
+    async fn get(&mut self) -> Result<WeatherData> {
         let response = self
             .service
             .ready()
@@ -48,7 +47,7 @@ impl Inner {
         self.last_response = Some(response.clone());
         let body = response.body()?;
 
-        Forecast::from_body(&body)
+        WeatherData::from_body(&body)
     }
 }
 
@@ -78,52 +77,53 @@ impl Weather {
         })
     }
 
-    /// Retrieve the weather forecast.
-    pub async fn forecast(&self) -> Result<Forecast> {
-        self.inner.lock().await.forecast().await
+    /// Fetches weather data.
+    pub async fn get(&self) -> Result<WeatherData> {
+        self.inner.lock().await.get().await
     }
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Forecast {
-    pub hourly_forecast: Vec<HourlyForecast>,
-    pub next_sunrise: Timestamp,
-    pub next_sunset: Timestamp,
-    pub timestamp: Timestamp,
+pub struct WeatherData {
+    pub coords: Coords,
+    pub current: DataPoint,
+    pub forecasts: Vec<DataPoint>,
 }
 
-impl Forecast {
-    fn from_body(body: &Body) -> Result<Forecast> {
-        let timestamp = Timestamp::now();
-        let latitude = body.geometry.coordinates.latitude;
-        let longitude = body.geometry.coordinates.longitude;
+impl WeatherData {
+    fn from_body(body: &Body) -> Result<WeatherData> {
+        let time_series = &body.properties.timeseries;
 
-        let next_sunrise = sun::next_sunrise(latitude, longitude, timestamp)?;
-        let next_sunset = sun::next_sunset(latitude, longitude, timestamp)?;
+        if time_series.is_empty() {
+            return Err(Error::new("empty time series"));
+        }
 
-        let hourly_forecast = body
-            .properties
-            .timeseries
+        let current = DataPoint::from_time_series(&time_series[0])?;
+
+        let forecasts = time_series
             .iter()
-            // Only take the forecast of every 4th hour.
-            .step_by(4)
-            // Take 7 forecasts * 4h = 28h to be able to draw the temperature graph until the edge
-            // of the screen towards the forecast from now+28h.
-            .take(7)
-            .map(HourlyForecast::from_time_series)
+            .skip(1) // The current weather.
+            .take(24) // 24 hours of forecast data.
+            .map(DataPoint::from_time_series)
             .collect::<Result<Vec<_>>>()?;
 
-        Ok(Forecast {
-            timestamp,
-            next_sunset,
-            next_sunrise,
-            hourly_forecast,
+        if forecasts.len() < 24 {
+            return Err(Error::new("not enough forecast data"));
+        }
+
+        Ok(WeatherData {
+            coords: Coords {
+                latitude: body.geometry.coordinates.latitude,
+                longitude: body.geometry.coordinates.longitude,
+            },
+            current,
+            forecasts,
         })
     }
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct HourlyForecast {
+pub struct DataPoint {
     pub air_temperature: f64,
     pub cloud_area_fraction: f64,
     pub precipitation_amount: f64,
@@ -132,8 +132,8 @@ pub struct HourlyForecast {
     pub wind_speed: f64,
 }
 
-impl HourlyForecast {
-    fn from_time_series(series: &TimeSeries) -> Result<HourlyForecast> {
+impl DataPoint {
+    fn from_time_series(series: &TimeSeries) -> Result<DataPoint> {
         let timestamp = Timestamp::from_second(series.time.timestamp())?;
 
         let precipitation_amount = series
@@ -149,7 +149,7 @@ impl HourlyForecast {
 
         let details = &series.data.instant.details;
 
-        Ok(HourlyForecast {
+        Ok(DataPoint {
             air_temperature: details.air_temperature.unwrap_or_default(),
             cloud_area_fraction: details.cloud_area_fraction.unwrap_or_default(),
             precipitation_amount,
@@ -158,4 +158,10 @@ impl HourlyForecast {
             wind_speed: details.wind_speed.unwrap_or_default(),
         })
     }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Coords {
+    pub longitude: f64,
+    pub latitude: f64,
 }

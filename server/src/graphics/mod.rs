@@ -5,7 +5,8 @@ use self::curve::fit_curve_to_points;
 use self::sprites::{sprite, spriten};
 use crate::{
     error::{Error, Result},
-    weather::Forecast,
+    sun,
+    weather::WeatherData,
 };
 use anyhow::anyhow;
 use embedded_graphics::prelude::*;
@@ -33,12 +34,12 @@ const BLACK: Rgba<u8> = Rgba([0, 0, 0, 255]);
 const WHITE: Rgba<u8> = Rgba([255, 255, 255, 255]);
 const TRANSPARENT: Rgba<u8> = Rgba([0, 0, 0, 0]);
 
-pub fn render(forecast: &Forecast) -> Result<Canvas> {
+pub fn render(data: &WeatherData) -> Result<Canvas> {
     // We'll flip width and height here. The e-paper display works in portrait mode but we'd like
     // to draw the image in landscape mode, because it's more intiutive. The rendered image gets
     // rotated by 90 degrees before serving it to the esp32.
     let mut canvas = Canvas::new(HEIGHT, WIDTH);
-    let ctx = RenderContext::create(forecast, canvas.width(), canvas.height())?;
+    let ctx = RenderContext::create(data, canvas.width(), canvas.height())?;
 
     debug!("rendering context {ctx:?}");
 
@@ -88,8 +89,8 @@ impl Canvas {
     fn draw_sun_and_moon(&mut self, ctx: &RenderContext) {
         let sun = sprite("sun_00");
         let moon = sprite("moon_00");
-        let sun_x = ctx.timestamp_to_x(ctx.forecast.next_sunrise, 0) - (sun.width() / 2) as i64;
-        let moon_x = ctx.timestamp_to_x(ctx.forecast.next_sunset, 0) - (moon.width() / 4) as i64;
+        let sun_x = ctx.timestamp_to_x(ctx.next_sunrise) - (sun.width() / 2) as i64;
+        let moon_x = ctx.timestamp_to_x(ctx.next_sunset) - (moon.width() / 4) as i64;
 
         debug!("placing sun at ({sun_x},0)");
         sun.overlay(&mut self.img, sun_x, 0);
@@ -116,7 +117,7 @@ impl Canvas {
             time = time.checked_add(SignedDuration::from_hours(24)).unwrap();
         }
 
-        let x = ctx.timestamp_to_x(time.timestamp(), 0);
+        let x = ctx.timestamp_to_x(time.timestamp());
 
         if x < ctx.x_offset {
             // We don't want it to overlap with the house, or do we?
@@ -132,12 +133,12 @@ impl Canvas {
     fn draw_temperatures(&mut self, ctx: &RenderContext) {
         // @TODO(mohmann): Handle the case when min and/or max temperature are equal to the current
         // temperature. Don't draw them in this case.
-        let mut x = ctx.x_offset;
+        let mut x = ctx.x_offset + ctx.x_step;
         let mut max_temperature_drawn = false;
         let mut min_temperature_drawn = false;
 
-        for hourly_forecast in ctx.forecast.hourly_forecast.iter() {
-            let temperature = hourly_forecast.air_temperature;
+        for data_point in ctx.data.forecasts.iter() {
+            let temperature = data_point.air_temperature;
             let y = ctx.degrees_to_y(temperature);
 
             if temperature == ctx.max_temperature && !max_temperature_drawn {
@@ -235,7 +236,7 @@ impl DerefMut for Canvas {
 
 #[derive(Debug)]
 struct RenderContext<'a> {
-    forecast: &'a Forecast,
+    data: &'a WeatherData,
     width: u32,
     height: u32,
     // X-axis offset for the weather graph.
@@ -250,22 +251,29 @@ struct RenderContext<'a> {
     max_temperature: f64,
     // Controls how many pixels to render per degree celsius.
     degrees_per_pixel: f64,
+    now: Timestamp,
+    next_sunrise: Timestamp,
+    next_sunset: Timestamp,
 }
 
 impl<'a> RenderContext<'a> {
-    fn create(forecast: &'a Forecast, width: u32, height: u32) -> Result<Self> {
+    fn create(data: &'a WeatherData, width: u32, height: u32) -> Result<Self> {
         let x_offset = sprite("house_00").width() as i64;
-        let x_step = (width as i64 - x_offset) / (forecast.hourly_forecast.len() as i64 - 1);
+        let x_step = (width as i64 - x_offset) / (data.forecasts.len() as i64 - 1);
         let y_offset = (height / 2) as i64;
         let y_step = (height as f64 * 0.39).round() as i64;
+        let now = Timestamp::now();
 
-        let temperatures: Vec<f64> = forecast
-            .hourly_forecast
+        let next_sunrise = sun::next_sunrise(data.coords.latitude, data.coords.longitude, now)?;
+        let next_sunset = sun::next_sunset(data.coords.latitude, data.coords.longitude, now)?;
+
+        let temperatures: Vec<f64> = data
+            .forecasts
             .iter()
             // We'll ignore the last forecast in the temperature calculation because it's going to
             // be off-screen and is only used to draw the temperature line to the edge of the
             // screen.
-            .take(forecast.hourly_forecast.len() - 1)
+            .take(data.forecasts.len() - 1)
             .map(|fc| fc.air_temperature)
             .collect();
 
@@ -291,7 +299,7 @@ impl<'a> RenderContext<'a> {
         };
 
         Ok(RenderContext {
-            forecast,
+            data,
             width,
             height,
             x_step,
@@ -302,15 +310,18 @@ impl<'a> RenderContext<'a> {
             min_temperature,
             max_temperature,
             degrees_per_pixel,
+            now,
+            next_sunrise,
+            next_sunset,
         })
     }
 
-    fn timestamp_to_x(&self, timestamp: Timestamp, x_offset: i64) -> i64 {
+    fn timestamp_to_x(&self, timestamp: Timestamp) -> i64 {
         let delta = timestamp
-            .duration_since(self.forecast.timestamp)
+            .duration_since(self.data.current.timestamp)
             .as_secs_f64();
-        let width = self.width as f64 - x_offset as f64;
-        ((delta / SECONDS_DAY) * width).round() as i64 + x_offset
+        let width = self.width as f64 - self.x_offset as f64;
+        ((delta / SECONDS_DAY) * width).round() as i64 + self.x_offset
     }
 
     fn degrees_to_y(&self, temperature: f64) -> i64 {
@@ -319,7 +330,7 @@ impl<'a> RenderContext<'a> {
     }
 
     fn compute_line_points(&self) -> IndexMap<i64, i64> {
-        let forecasts = &self.forecast.hourly_forecast;
+        let forecasts = &self.data.forecasts;
         let mut points: Vec<Coord2> = Vec::with_capacity(forecasts.len() + self.x_offset as usize);
 
         let y = self.degrees_to_y(self.current_temperature);
@@ -329,7 +340,7 @@ impl<'a> RenderContext<'a> {
             points.push(Coord2(x as f64, y as f64));
         }
 
-        let mut x = self.x_offset;
+        let mut x = self.x_offset + self.x_step;
 
         // Points for the temperatures.
         for forecast in forecasts.iter() {
