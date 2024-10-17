@@ -50,8 +50,8 @@ fn sunrise_sunset(
         date.day().try_into().expect("invalid day"),
     );
 
-    let sunrise = Timestamp::from_second(sunrise_secs).expect("invalid timestamp");
-    let sunset = Timestamp::from_second(sunset_secs).expect("invalid timestamp");
+    let sunrise = Timestamp::from_second(sunrise_secs)?;
+    let sunset = Timestamp::from_second(sunset_secs)?;
 
     Ok((sunrise, sunset))
 }
