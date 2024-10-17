@@ -240,11 +240,13 @@ impl Canvas {
             };
 
             // Determine sprite index (00 - 03) based on wind speed
-            let sprite_index = if wind_speed < 5.0 {
+            // Wind speed will be m/s
+            // https://api.met.no/doc/locationforecast/datamodel
+            let sprite_index = if wind_speed < 2.0 {
                 0
-            } else if wind_speed < 10.0 {
+            } else if wind_speed < 5.0 {
                 1
-            } else if wind_speed < 20.0 {
+            } else if wind_speed < 10.0 {
                 2
             } else {
                 3
