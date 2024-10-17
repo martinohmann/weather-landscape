@@ -83,8 +83,13 @@ pub(super) fn sprites() -> &'static HashMap<&'static str, Sprite> {
     })
 }
 
-pub(super) fn sprite(name: &str) -> &Sprite {
+pub(super) fn sprite(name: &str) -> &'static Sprite {
     sprites().get(name).unwrap()
+}
+
+pub(super) fn spriten(prefix: &str, n: usize) -> &'static Sprite {
+    let name = format!("{prefix}_{n:02}");
+    sprite(&name)
 }
 
 #[derive(Debug)]
