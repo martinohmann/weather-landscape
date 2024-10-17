@@ -49,8 +49,9 @@ pub fn render(data: &WeatherData) -> Result<Canvas> {
 
     canvas.draw_house(&ctx);
     canvas.draw_sun_and_moon(&ctx);
-    canvas.draw_temperatures(&ctx);
     canvas.draw_midday_and_midnight(&ctx, &line_points);
+    canvas.draw_temperature(&ctx, ctx.min_temperature);
+    canvas.draw_temperature(&ctx, ctx.max_temperature);
 
     for (x, y) in line_points {
         canvas.draw_pixel(x, y);
@@ -131,25 +132,21 @@ impl Canvas {
     }
 
     fn draw_temperatures(&mut self, ctx: &RenderContext) {
-        // @TODO(mohmann): Handle the case when min and/or max temperature are equal to the current
-        // temperature. Don't draw them in this case.
-        let mut x = ctx.x_offset + ctx.x_step;
-        let mut max_temperature_drawn = false;
-        let mut min_temperature_drawn = false;
+        self.draw_temperature(ctx, ctx.min_temperature);
+        self.draw_temperature(ctx, ctx.max_temperature);
+    }
 
-        for data_point in ctx.data.forecasts.iter() {
-            let temperature = data_point.air_temperature;
-            let y = ctx.degrees_to_y(temperature);
-
-            if temperature == ctx.max_temperature && !max_temperature_drawn {
-                self.draw_digits(x, y + 5, temperature.round() as i64);
-                max_temperature_drawn = true;
-            } else if temperature == ctx.min_temperature && !min_temperature_drawn {
-                self.draw_digits(x, y + 5, temperature.round() as i64);
-                min_temperature_drawn = true;
-            }
-
-            x += ctx.x_step;
+    fn draw_temperature(&mut self, ctx: &RenderContext, temperature: f64) {
+        if let Some((i, data_point)) = ctx
+            .data
+            .forecasts
+            .iter()
+            .enumerate()
+            .find(|(_, dp)| dp.air_temperature == temperature)
+        {
+            let x = ctx.x_offset + (ctx.x_step * (i as i64 + 1));
+            let y = ctx.degrees_to_y(data_point.air_temperature);
+            self.draw_digits(x, y + 5, temperature.round() as i64);
         }
     }
 
@@ -317,9 +314,7 @@ impl<'a> RenderContext<'a> {
     }
 
     fn timestamp_to_x(&self, timestamp: Timestamp) -> i64 {
-        let delta = timestamp
-            .duration_since(self.data.current.timestamp)
-            .as_secs_f64();
+        let delta = timestamp.duration_since(self.now).as_secs_f64();
         let width = self.width as f64 - self.x_offset as f64;
         ((delta / SECONDS_DAY) * width).round() as i64 + self.x_offset
     }
