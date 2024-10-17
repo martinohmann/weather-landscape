@@ -236,15 +236,17 @@ struct RenderContext<'a> {
     data: &'a WeatherData,
     width: u32,
     height: u32,
-    // X-axis offset for the weather graph.
+    // X-offset for the weather graph.
     x_offset: i64,
+    // X-step for a single forecast.
     x_step: i64,
-    // Y-axis offset for the weather graph.
+    // Y-offset for the weather graph.
     y_offset: i64,
-    y_step: i64,
-    // The current temperature from the forecast.
+    // The current temperature.
     current_temperature: f64,
+    // The minimum temperature from the forecast.
     min_temperature: f64,
+    // The maximum temperature from the forecast.
     max_temperature: f64,
     // Controls how many pixels to render per degree celsius.
     degrees_per_pixel: f64,
@@ -257,8 +259,8 @@ impl<'a> RenderContext<'a> {
     fn create(data: &'a WeatherData, width: u32, height: u32) -> Result<Self> {
         let x_offset = sprite("house_00").width() as i64;
         let x_step = (width as i64 - x_offset) / (data.forecasts.len() as i64 - 1);
-        let y_offset = (height / 2) as i64;
         let y_step = (height as f64 * 0.39).round() as i64;
+        let y_offset = (height as i64 / 2) + y_step;
         let now = Timestamp::now();
 
         let next_sunrise = sun::next_sunrise(data.coords.latitude, data.coords.longitude, now)?;
@@ -301,7 +303,6 @@ impl<'a> RenderContext<'a> {
             height,
             x_step,
             x_offset,
-            y_step,
             y_offset,
             current_temperature,
             min_temperature,
@@ -320,8 +321,8 @@ impl<'a> RenderContext<'a> {
     }
 
     fn degrees_to_y(&self, temperature: f64) -> i64 {
-        let n = ((temperature - self.min_temperature) / self.degrees_per_pixel).round() as i64;
-        self.y_offset + self.y_step - n
+        let delta = temperature - self.min_temperature;
+        self.y_offset - (delta / self.degrees_per_pixel).round() as i64
     }
 
     fn compute_line_points(&self) -> IndexMap<i64, i64> {
