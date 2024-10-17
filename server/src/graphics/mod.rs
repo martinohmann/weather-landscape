@@ -326,6 +326,9 @@ impl<'a> RenderContext<'a> {
     }
 
     fn compute_line_points(&self) -> IndexMap<i64, i64> {
+        // @FIXME(mohmann): now that we're at 24 forecasts data points again, it's probably enough
+        // to just connect the dots with lines instead of having all this curve fitting code
+        // around.
         let forecasts = &self.data.forecasts;
         let mut points: Vec<Coord2> = Vec::with_capacity(forecasts.len() + self.x_offset as usize);
 
