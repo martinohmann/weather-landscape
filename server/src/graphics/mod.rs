@@ -49,8 +49,8 @@ pub fn render(data: &WeatherData) -> Result<Canvas> {
     canvas.draw_house(&ctx);
     canvas.draw_sun_and_moon(&ctx);
     canvas.draw_midday_and_midnight(&ctx, &line_points);
-    canvas.draw_temperature(&ctx, ctx.min_temperature);
-    canvas.draw_temperature(&ctx, ctx.max_temperature);
+    canvas.draw_temperature_extrema(&ctx, ctx.min_temperature);
+    canvas.draw_temperature_extrema(&ctx, ctx.max_temperature);
 
     for (x, y) in line_points {
         canvas.draw_pixel(x, y);
@@ -131,12 +131,12 @@ impl Canvas {
         }
     }
 
-    fn draw_temperatures(&mut self, ctx: &RenderContext) {
-        self.draw_temperature(ctx, ctx.min_temperature);
-        self.draw_temperature(ctx, ctx.max_temperature);
+    fn draw_temperature_extremas(&mut self, ctx: &RenderContext) {
+        self.draw_temperature_extrema(ctx, ctx.min_temperature);
+        self.draw_temperature_extrema(ctx, ctx.max_temperature);
     }
 
-    fn draw_temperature(&mut self, ctx: &RenderContext, temperature: f64) {
+    fn draw_temperature_extrema(&mut self, ctx: &RenderContext, temperature: f64) {
         if let Some((i, data_point)) = ctx
             .data
             .forecasts
