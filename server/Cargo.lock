@@ -883,32 +883,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "esp32-landscape-weather-server"
-version = "0.1.0"
-dependencies = [
- "actix-web",
- "anyhow",
- "config",
- "embedded-graphics",
- "env_logger",
- "epd-waveshare",
- "flo_curves",
- "image",
- "imageproc",
- "indexmap",
- "jiff",
- "log",
- "mime",
- "monsoon",
- "rand",
- "serde",
- "sunrise",
- "thiserror",
- "tokio",
- "tower",
-]
-
-[[package]]
 name = "exr"
 version = "1.72.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1427,6 +1401,32 @@ dependencies = [
  "pest",
  "pest_derive",
  "serde",
+]
+
+[[package]]
+name = "landscape-weather-server"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "anyhow",
+ "config",
+ "embedded-graphics",
+ "env_logger",
+ "epd-waveshare",
+ "flo_curves",
+ "image",
+ "imageproc",
+ "indexmap",
+ "jiff",
+ "log",
+ "mime",
+ "monsoon",
+ "rand",
+ "serde",
+ "sunrise",
+ "thiserror",
+ "tokio",
+ "tower",
 ]
 
 [[package]]
