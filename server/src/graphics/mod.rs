@@ -139,7 +139,7 @@ impl Canvas {
 
         // Only draw a forecast sample for every 4 hours. It'll get too crowded otherwise.
         for (i, forecast) in forecasts.iter().enumerate().step_by(4) {
-            let x = ctx.x_offset + (ctx.x_step * (i as i64 + 1));
+            let x = ctx.forecast_x(i);
             self.draw_clouds(forecast.cloud_area_fraction, x, 5, ctx.x_step);
         }
     }
@@ -157,7 +157,7 @@ impl Canvas {
             .enumerate()
             .find(|(_, dp)| dp.air_temperature == temperature)
         {
-            let x = ctx.x_offset + (ctx.x_step * (i as i64 + 1));
+            let x = ctx.forecast_x(i);
             let y = ctx.temperature_to_y(data_point.air_temperature);
             self.draw_digits(x, y + 5, temperature.round() as i64);
         }
@@ -358,6 +358,10 @@ impl<'a> RenderContext<'a> {
         self.y_offset - (delta / self.degrees_per_pixel).round() as i64
     }
 
+    fn forecast_x(&self, i: usize) -> i64 {
+        self.x_offset + (self.x_step * (i as i64 + 1))
+    }
+
     fn compute_line_points(&self) -> IndexMap<i64, i64> {
         // @FIXME(mohmann): now that we're at 24 forecasts data points again, it's probably enough
         // to just connect the dots with lines instead of having all this curve fitting code
@@ -372,13 +376,11 @@ impl<'a> RenderContext<'a> {
             points.push(Coord2(x as f64, y as f64));
         }
 
-        let mut x = self.x_offset + self.x_step;
-
         // Points for the temperatures.
-        for forecast in forecasts.iter() {
+        for (i, forecast) in forecasts.iter().enumerate() {
+            let x = self.forecast_x(i);
             let y = self.temperature_to_y(forecast.air_temperature);
             points.push(Coord2(x as f64, y as f64));
-            x += self.x_step;
         }
 
         // The heavy lifting.
