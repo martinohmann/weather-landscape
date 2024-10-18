@@ -252,6 +252,8 @@ impl Canvas {
     }
 
     fn draw_trees(&mut self, data: &DataPoint, x: i64, line_points: &IndexMap<i64, i64>) {
+        // @FIXME(mohmann): Simplify this complicated method.
+
         fn direction_distance(a: f64, b: f64) -> f64 {
             let high = a.max(b);
             let low = a.min(b);
@@ -265,47 +267,50 @@ impl Canvas {
         }
 
         fn select_trees<'a>(a: f64, b: f64, name: &'a str, trees: &mut Vec<&'a str>) {
-            const COUNT: &[usize] = &[4, 3, 3, 2, 2, 1, 1];
+            const TREE_COUNTS: &[usize] = &[4, 3, 3, 2, 2, 1, 1];
 
             let step = 11.25; // degrees
             let distance = direction_distance(a, b);
-            let n = (distance / step) as usize;
+            let index = (distance / step) as usize;
 
-            if n < COUNT.len() {
-                for _ in 0..COUNT[n] {
+            if index < TREE_COUNTS.len() {
+                for _ in 0..TREE_COUNTS[index] {
                     trees.push(name);
                 }
             }
         }
 
+        const TREE_DIRECTIONS: [(&str, f64); 4] =
+            [("pine", 0.), ("east", 90.), ("palm", 180.), ("tree", 270.)];
+
         let mut trees: Vec<&str> = Vec::new();
 
-        select_trees(data.wind_from_direction, 0., "pine", &mut trees);
-        select_trees(data.wind_from_direction, 90., "east", &mut trees);
-        select_trees(data.wind_from_direction, 180., "palm", &mut trees);
-        select_trees(data.wind_from_direction, 270., "tree", &mut trees);
+        for (name, direction) in TREE_DIRECTIONS {
+            select_trees(data.wind_from_direction, direction, name, &mut trees);
+        }
 
         let mut rng = rand::thread_rng();
         trees.shuffle(&mut rng);
 
-        let wind_index: &mut [usize] = match data.wind_speed {
-            ..0.4 => &mut [],
-            0.4..0.7 => &mut [0],
-            0.7..1.7 => &mut [1, 0, 0],
-            1.7..3.3 => &mut [1, 1, 0, 0],
-            3.3..5.2 => &mut [1, 2, 0, 0],
-            5.2..7.4 => &mut [1, 2, 2, 0],
-            7.4..9.8 => &mut [1, 2, 3, 0],
-            9.8..12.4 => &mut [2, 2, 3, 0],
-            _ => &mut [3, 3, 3, 3],
+        let wind_index: &[usize] = match data.wind_speed {
+            ..0.4 => &[],
+            0.4..0.7 => &[0],
+            0.7..1.7 => &[1, 0, 0],
+            1.7..3.3 => &[1, 1, 0, 0],
+            3.3..5.2 => &[1, 2, 0, 0],
+            5.2..7.4 => &[1, 2, 2, 0],
+            7.4..9.8 => &[1, 2, 3, 0],
+            9.8..12.4 => &[2, 2, 3, 0],
+            _ => &[3, 3, 3, 3],
         };
 
+        let mut wind_index = Vec::from_iter(wind_index);
         wind_index.shuffle(&mut rng);
 
         let mut x_offset = x;
         let mut tree_index = 0;
 
-        for &mut i in wind_index {
+        for &i in wind_index {
             let offset = x_offset + 5;
 
             if offset > line_points.len() as i64 {
@@ -313,11 +318,10 @@ impl Canvas {
             }
 
             if let Some(name) = trees.get(tree_index) {
-                if let Some(&y) = line_points.get(&offset) {
-                    let tree = spriten(name, i);
-                    let y_offset = (y - tree.height() as i64) + 1;
-                    tree.overlay(&mut self.img, x_offset, y_offset);
-                }
+                let y = line_points.get(&offset).unwrap();
+                let tree = spriten(name, i);
+                let y_offset = (y - tree.height() as i64) + 1;
+                tree.overlay(&mut self.img, x_offset, y_offset);
             }
 
             x_offset += 9;
