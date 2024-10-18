@@ -292,24 +292,34 @@ impl Canvas {
         let mut rng = rand::thread_rng();
         trees.shuffle(&mut rng);
 
-        let wind_index: &[usize] = match data.wind_speed {
-            ..0.4 => &[],
-            0.4..0.7 => &[0],
-            0.7..1.7 => &[1, 0, 0],
-            1.7..3.3 => &[1, 1, 0, 0],
-            3.3..5.2 => &[1, 2, 0, 0],
-            5.2..7.4 => &[1, 2, 2, 0],
-            7.4..9.8 => &[1, 2, 3, 0],
-            9.8..12.4 => &[2, 2, 3, 0],
-            _ => &[3, 3, 3, 3],
+        let wind_speed = data.wind_speed;
+
+        let wind_indices: &[usize] = if wind_speed <= 0.4 {
+            &[]
+        } else if wind_speed <= 0.7 {
+            &[0]
+        } else if wind_speed <= 1.7 {
+            &[1, 0, 0]
+        } else if wind_speed <= 3.3 {
+            &[1, 1, 0, 0]
+        } else if wind_speed <= 5.2 {
+            &[1, 2, 0, 0]
+        } else if wind_speed <= 7.4 {
+            &[1, 2, 2, 0]
+        } else if wind_speed <= 9.8 {
+            &[1, 2, 3, 0]
+        } else if wind_speed <= 12.4 {
+            &[2, 2, 3, 0]
+        } else {
+            &[3, 3, 3, 3]
         };
 
-        let mut wind_index = Vec::from_iter(wind_index);
-        wind_index.shuffle(&mut rng);
+        let mut wind_indices = Vec::from_iter(wind_indices);
+        wind_indices.shuffle(&mut rng);
 
         let mut x_offset = x;
 
-        for (tree_index, &i) in wind_index.into_iter().enumerate() {
+        for (tree_index, &wind_index) in wind_indices.into_iter().enumerate() {
             let offset = x_offset + 5;
 
             if offset > line_points.len() as i64 {
@@ -318,7 +328,7 @@ impl Canvas {
 
             if let Some(name) = trees.get(tree_index) {
                 let y = line_points.get(&offset).unwrap();
-                let tree = spriten(name, i);
+                let tree = spriten(name, wind_index);
                 let y_offset = (y - tree.height() as i64) + 1;
                 tree.overlay(&mut self.img, x_offset, y_offset);
             }
