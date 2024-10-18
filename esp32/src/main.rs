@@ -85,6 +85,7 @@ fn run(peripherals: Peripherals, sysloop: EspSystemEventLoop) -> Result<()> {
     info!("Drawing image");
     epd.update_and_display_frame(&mut spi, &image_data, &mut delay)?;
 
+    #[allow(clippy::absurd_extreme_comparisons)]
     if CONFIG.clear_after_seconds > 0 {
         thread::sleep(Duration::from_secs(CONFIG.clear_after_seconds));
 
