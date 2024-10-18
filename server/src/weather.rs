@@ -4,8 +4,8 @@ use monsoon::{
     body::{Body, TimeSeries},
     Monsoon, Params, Response,
 };
-use std::sync::Arc;
 use std::time::Duration;
+use std::{str::FromStr, sync::Arc};
 use tokio::sync::Mutex;
 use tower::{
     limit::{ConcurrencyLimit, RateLimit},
@@ -127,6 +127,7 @@ impl WeatherData {
 pub struct DataPoint {
     pub air_temperature: f64,
     pub cloud_area_fraction: f64,
+    pub condition: Condition,
     pub precipitation_amount: f64,
     pub timestamp: Timestamp,
     pub wind_from_direction: f64,
@@ -148,11 +149,19 @@ impl DataPoint {
             })
             .unwrap_or_default();
 
+        let condition = series
+            .data
+            .next_1_hours
+            .as_ref()
+            .and_then(|next| Condition::from_str(next.summary.symbol_code).ok())
+            .unwrap_or_default();
+
         let details = &series.data.instant.details;
 
         Ok(DataPoint {
             air_temperature: details.air_temperature.unwrap_or_default(),
             cloud_area_fraction: details.cloud_area_fraction.unwrap_or_default(),
+            condition,
             precipitation_amount,
             timestamp,
             wind_from_direction: details.wind_from_direction.unwrap_or_default(),
@@ -165,4 +174,49 @@ impl DataPoint {
 pub struct Coords {
     pub longitude: f64,
     pub latitude: f64,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub enum Condition {
+    ClearSky,
+    Cloudy,
+    Fair,
+    Fog,
+    PartlyCloudy,
+    Rain,
+    Sleet,
+    Snow,
+    #[default]
+    Unknown,
+}
+
+impl FromStr for Condition {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let condition = match s {
+            "clearsky" | "clearsky_day" | "clearsky_night" => Condition::ClearSky,
+            "cloudy" | "cloudy_day" | "cloudy_night" => Condition::Cloudy,
+            "fair" | "fair_day" | "fair_night" => Condition::Fair,
+            "fog" | "fog_day" | "fog_night" => Condition::Fog,
+            "partlycloudy" | "partlycloudy_day" | "partlycloudy_night" => Condition::PartlyCloudy,
+            condition => {
+                // @TODO(mohmann): There are a lot more specific rain, sleet and snow condition,
+                // but we're not enumerating them explicitly for now.
+                //
+                // https://github.com/metno/weathericons/tree/main/weather
+                if condition.contains("rain") {
+                    Condition::Rain
+                } else if condition.contains("sleet") {
+                    Condition::Sleet
+                } else if condition.contains("snow") {
+                    Condition::Snow
+                } else {
+                    return Err(Error::new("unknown weather condition"));
+                }
+            }
+        };
+
+        Ok(condition)
+    }
 }

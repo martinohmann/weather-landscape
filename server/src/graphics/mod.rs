@@ -3,6 +3,7 @@ mod sprites;
 
 use self::curve::fit_curve_to_points;
 use self::sprites::{sprite, spriten};
+use crate::weather::{Condition, DataPoint};
 use crate::{
     error::{Error, Result},
     sun,
@@ -30,6 +31,10 @@ use std::{
 
 const HEAVY_RAIN: f64 = 5.0;
 const RAIN_FACTOR: f64 = 20.0;
+const HEAVY_SLEET: f64 = 5.0;
+const SLEET_FACTOR: f64 = 15.0;
+const HEAVY_SNOW: f64 = 5.0;
+const SNOW_FACTOR: f64 = 10.0;
 const SECONDS_DAY: f64 = 24.0 * 60.0 * 60.0;
 const BLACK: Rgba<u8> = Rgba([0, 0, 0, 255]);
 const WHITE: Rgba<u8> = Rgba([255, 255, 255, 255]);
@@ -143,13 +148,7 @@ impl Canvas {
 
         self.draw_house(ctx);
         self.draw_clouds(weather.cloud_area_fraction, 0, 5, ctx.x_offset);
-        self.draw_rain(
-            weather.precipitation_amount,
-            0,
-            cloud_height + 5,
-            ctx.x_offset,
-            line_points,
-        );
+        self.draw_precipitation(weather, 0, cloud_height + 5, ctx.x_offset, line_points);
         self.draw_temperature(ctx, weather.air_temperature, ctx.x_offset / 2);
     }
 
@@ -161,13 +160,7 @@ impl Canvas {
         for (i, forecast) in forecasts.iter().enumerate().step_by(4) {
             let x = ctx.forecast_x(i);
             self.draw_clouds(forecast.cloud_area_fraction, x, 5, ctx.x_step * 4);
-            self.draw_rain(
-                forecast.precipitation_amount,
-                x,
-                cloud_height + 5,
-                ctx.x_step * 4,
-                line_points,
-            );
+            self.draw_precipitation(forecast, x, cloud_height + 5, ctx.x_step * 4, line_points);
         }
 
         self.draw_temperature_extrema(ctx, ctx.min_temperature);
@@ -216,6 +209,30 @@ impl Canvas {
         }
     }
 
+    fn draw_precipitation(
+        &mut self,
+        data: &DataPoint,
+        x: i64,
+        y: i64,
+        width: i64,
+        line_points: &IndexMap<i64, i64>,
+    ) {
+        if data.precipitation_amount <= 0.0 {
+            // There's nothing that could fall from the sky.
+            return;
+        }
+
+        match data.condition {
+            Condition::Snow => {
+                self.draw_snow(data.precipitation_amount, x, y, width, line_points);
+            }
+            Condition::Sleet => {
+                self.draw_sleet(data.precipitation_amount, x, y, width, line_points);
+            }
+            _ => self.draw_rain(data.precipitation_amount, x, y, width, line_points),
+        }
+    }
+
     fn draw_rain(
         &mut self,
         value: f64,
@@ -232,6 +249,51 @@ impl Canvas {
                     if rand::random::<f64>() > r {
                         self.draw_pixel(x, y);
                         self.draw_pixel(x, y - 1);
+                    }
+                }
+            }
+        }
+    }
+
+    fn draw_sleet(
+        &mut self,
+        value: f64,
+        x: i64,
+        y: i64,
+        width: i64,
+        line_points: &IndexMap<i64, i64>,
+    ) {
+        let r = 1.0 - (value / HEAVY_SLEET) / SLEET_FACTOR;
+
+        for x in x..x + width {
+            if let Some(&y_max) = line_points.get(&x) {
+                for y in (y..y_max).step_by(2) {
+                    if rand::random::<f64>() > r {
+                        self.draw_pixel(x, y);
+                        if rand::random() {
+                            self.draw_pixel(x, y - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn draw_snow(
+        &mut self,
+        value: f64,
+        x: i64,
+        y: i64,
+        width: i64,
+        line_points: &IndexMap<i64, i64>,
+    ) {
+        let r = 1.0 - (value / HEAVY_SNOW) / SNOW_FACTOR;
+
+        for x in x..x + width {
+            if let Some(&y_max) = line_points.get(&x) {
+                for y in (y..y_max).step_by(2) {
+                    if rand::random::<f64>() > r {
+                        self.draw_pixel(x, y);
                     }
                 }
             }
