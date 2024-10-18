@@ -222,78 +222,27 @@ impl Canvas {
             return;
         }
 
-        match data.condition {
-            Condition::Snow => {
-                self.draw_snow(data.precipitation_amount, x, y, width, line_points);
-            }
-            Condition::Sleet => {
-                self.draw_sleet(data.precipitation_amount, x, y, width, line_points);
-            }
-            _ => self.draw_rain(data.precipitation_amount, x, y, width, line_points),
-        }
-    }
+        let (heaviness, factor) = match data.condition {
+            Condition::Snow => (HEAVY_SNOW, SNOW_FACTOR),
+            Condition::Sleet => (HEAVY_SLEET, SLEET_FACTOR),
+            _ => (HEAVY_RAIN, RAIN_FACTOR),
+        };
 
-    fn draw_rain(
-        &mut self,
-        value: f64,
-        x: i64,
-        y: i64,
-        width: i64,
-        line_points: &IndexMap<i64, i64>,
-    ) {
-        let r = 1.0 - (value / HEAVY_RAIN) / RAIN_FACTOR;
+        let r = 1.0 - (data.precipitation_amount / heaviness) / factor;
 
         for x in x..x + width {
             if let Some(&y_max) = line_points.get(&x) {
                 for y in (y..y_max).step_by(2) {
                     if rand::random::<f64>() > r {
                         self.draw_pixel(x, y);
-                        self.draw_pixel(x, y - 1);
-                    }
-                }
-            }
-        }
-    }
 
-    fn draw_sleet(
-        &mut self,
-        value: f64,
-        x: i64,
-        y: i64,
-        width: i64,
-        line_points: &IndexMap<i64, i64>,
-    ) {
-        let r = 1.0 - (value / HEAVY_SLEET) / SLEET_FACTOR;
-
-        for x in x..x + width {
-            if let Some(&y_max) = line_points.get(&x) {
-                for y in (y..y_max).step_by(2) {
-                    if rand::random::<f64>() > r {
-                        self.draw_pixel(x, y);
-                        if rand::random() {
+                        if let Condition::Snow = data.condition {
                             self.draw_pixel(x, y - 1);
+                        } else if let Condition::Sleet = data.condition {
+                            if rand::random() {
+                                self.draw_pixel(x, y - 1);
+                            }
                         }
-                    }
-                }
-            }
-        }
-    }
-
-    fn draw_snow(
-        &mut self,
-        value: f64,
-        x: i64,
-        y: i64,
-        width: i64,
-        line_points: &IndexMap<i64, i64>,
-    ) {
-        let r = 1.0 - (value / HEAVY_SNOW) / SNOW_FACTOR;
-
-        for x in x..x + width {
-            if let Some(&y_max) = line_points.get(&x) {
-                for y in (y..y_max).step_by(2) {
-                    if rand::random::<f64>() > r {
-                        self.draw_pixel(x, y);
                     }
                 }
             }
