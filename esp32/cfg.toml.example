@@ -1,5 +1,16 @@
 [esp32-landscape-weather]
+# The URL to the image that is downloaded and displayed periodically.
 data_url = "http://192.168.123.456:8080/image.epd"
+
+# How long to put the ESP into deep sleep until waking up and requesting the
+# next image.
 deep_sleep_seconds = 600
+
+# Wifi SSID
 wifi_ssid = "my-wifi"
+
+# Wifi Password
 wifi_psk = "supersecret"
+
+# If > 0, clear the display x seconds after drawing the image.
+clear_after_seconds = 0
