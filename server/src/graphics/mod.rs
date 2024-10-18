@@ -23,7 +23,6 @@ use jiff::civil::time;
 use jiff::{SignedDuration, Timestamp, Zoned};
 use log::debug;
 use rand::Rng;
-use sprites::Sprite;
 use std::{
     io::Cursor,
     ops::{Deref, DerefMut},
@@ -47,13 +46,10 @@ pub fn render(data: &WeatherData) -> Result<Canvas> {
 
     debug!("{} line points: {:?}", line_points.len(), line_points);
 
-    canvas.draw_house(&ctx);
     canvas.draw_celestial_bodies(&ctx);
-    canvas.draw_clouds(ctx.data.current.cloud_area_fraction, 0, 5, ctx.x_offset);
-    canvas.draw_forecasts(&ctx);
+    canvas.draw_current_weather(&ctx);
     canvas.draw_midday_and_midnight(&ctx, &line_points);
-    canvas.draw_temperature_extrema(&ctx, ctx.min_temperature);
-    canvas.draw_temperature_extrema(&ctx, ctx.max_temperature);
+    canvas.draw_forecasts(&ctx);
 
     for (x, y) in line_points {
         canvas.draw_pixel(x, y);
@@ -80,40 +76,38 @@ impl Canvas {
         } else {
             sprite("house_00")
         };
-        let current_temperature = ctx.data.current.air_temperature;
-        let y = ctx.temperature_to_y(current_temperature);
-        let house_y = y - house.height() as i64;
 
-        debug!("placing house at (0, {house_y})");
-        house.overlay(&mut self.img, 0, house_y);
+        let y = ctx.temperature_to_y(ctx.data.current.air_temperature) - house.height() as i64;
 
-        self.draw_digits(ctx.x_offset / 2, y + 5, current_temperature.round() as i64);
+        debug!("placing house at (0, {y})");
+        house.overlay(&mut self.img, 0, y);
     }
 
     fn draw_celestial_bodies(&mut self, ctx: &RenderContext) {
         let sun = sprite("sun_00");
-        let moon = sprite("moon_00");
         let sun_x = ctx.timestamp_to_x(ctx.next_sunrise) - (sun.width() / 2) as i64;
-        let moon_x = ctx.timestamp_to_x(ctx.next_sunset) - (moon.width() / 4) as i64;
 
         debug!("placing sun at ({sun_x},0)");
         sun.overlay(&mut self.img, sun_x, 0);
+
+        let moon = sprite("moon_00");
+        let moon_x = ctx.timestamp_to_x(ctx.next_sunset) - (moon.width() / 4) as i64;
 
         debug!("placing moon at ({moon_x},0)");
         moon.overlay(&mut self.img, moon_x, 0);
     }
 
     fn draw_midday_and_midnight(&mut self, ctx: &RenderContext, line_points: &IndexMap<i64, i64>) {
-        self.draw_flower(ctx, line_points, sprite("flower_00"), 0);
-        self.draw_flower(ctx, line_points, sprite("flower_01"), 12);
+        self.draw_flower(ctx, "flower_00", 0, line_points);
+        self.draw_flower(ctx, "flower_01", 12, line_points);
     }
 
     fn draw_flower(
         &mut self,
         ctx: &RenderContext,
-        line_points: &IndexMap<i64, i64>,
-        sprite: &Sprite,
+        name: &str,
         hour: i8,
+        line_points: &IndexMap<i64, i64>,
     ) {
         let now = Zoned::now();
         let mut time = now.with().time(time(hour, 0, 0, 0)).build().unwrap();
@@ -129,9 +123,18 @@ impl Canvas {
         }
 
         if let Some(y) = line_points.get(&x) {
+            let sprite = sprite(name);
             let y = *y - sprite.height() as i64;
             sprite.overlay(&mut self.img, x, y);
         }
+    }
+
+    fn draw_current_weather(&mut self, ctx: &RenderContext) {
+        let weather = &ctx.data.current;
+
+        self.draw_house(ctx);
+        self.draw_clouds(weather.cloud_area_fraction, 0, 5, ctx.x_offset);
+        self.draw_temperature(ctx, weather.air_temperature, ctx.x_offset / 2);
     }
 
     fn draw_forecasts(&mut self, ctx: &RenderContext) {
@@ -142,9 +145,7 @@ impl Canvas {
             let x = ctx.forecast_x(i);
             self.draw_clouds(forecast.cloud_area_fraction, x, 5, ctx.x_step);
         }
-    }
 
-    fn draw_temperature_extremas(&mut self, ctx: &RenderContext) {
         self.draw_temperature_extrema(ctx, ctx.min_temperature);
         self.draw_temperature_extrema(ctx, ctx.max_temperature);
     }
@@ -158,9 +159,13 @@ impl Canvas {
             .find(|(_, dp)| dp.air_temperature == temperature)
         {
             let x = ctx.forecast_x(i);
-            let y = ctx.temperature_to_y(data_point.air_temperature);
-            self.draw_digits(x, y + 5, temperature.round() as i64);
+            self.draw_temperature(ctx, data_point.air_temperature, x);
         }
+    }
+
+    fn draw_temperature(&mut self, ctx: &RenderContext, temperature: f64, x: i64) {
+        let y = ctx.temperature_to_y(temperature);
+        self.draw_digits(x, y + 5, temperature.round() as i64);
     }
 
     fn draw_clouds(&mut self, percentage: f64, x: i64, y: i64, width: i64) {
@@ -272,7 +277,6 @@ impl DerefMut for Canvas {
 struct RenderContext<'a> {
     data: &'a WeatherData,
     width: u32,
-    height: u32,
     // X-offset for the weather graph.
     x_offset: i64,
     // X-step for a single forecast.
@@ -334,7 +338,6 @@ impl<'a> RenderContext<'a> {
         Ok(RenderContext {
             data,
             width,
-            height,
             x_step,
             x_offset,
             y_offset,

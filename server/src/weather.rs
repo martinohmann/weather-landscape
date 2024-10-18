@@ -122,6 +122,7 @@ impl WeatherData {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub struct DataPoint {
     pub air_temperature: f64,
