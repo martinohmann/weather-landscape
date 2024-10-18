@@ -23,6 +23,7 @@ use indexmap::IndexMap;
 use jiff::civil::time;
 use jiff::{SignedDuration, Timestamp, Zoned};
 use log::debug;
+use rand::seq::SliceRandom;
 use rand::Rng;
 use std::{
     io::Cursor,
@@ -160,6 +161,7 @@ impl Canvas {
         for (i, forecast) in forecasts.iter().enumerate().step_by(4) {
             let x = ctx.forecast_x(i);
             self.draw_clouds(forecast.cloud_area_fraction, x, 5, ctx.x_step * 4);
+            self.draw_trees(forecast, x, line_points);
             self.draw_precipitation(forecast, x, cloud_height + 5, ctx.x_step * 4, line_points);
         }
 
@@ -246,6 +248,80 @@ impl Canvas {
                     }
                 }
             }
+        }
+    }
+
+    fn draw_trees(&mut self, data: &DataPoint, x: i64, line_points: &IndexMap<i64, i64>) {
+        fn direction_distance(a: f64, b: f64) -> f64 {
+            let high = a.max(b);
+            let low = a.min(b);
+            let mut distance = high - low;
+
+            if distance > 180. {
+                distance = 360. - distance
+            }
+
+            distance
+        }
+
+        fn select_trees<'a>(a: f64, b: f64, name: &'a str, trees: &mut Vec<&'a str>) {
+            const COUNT: &[usize] = &[4, 3, 3, 2, 2, 1, 1];
+
+            let step = 11.25; // degrees
+            let distance = direction_distance(a, b);
+            let n = (distance / step) as usize;
+
+            if n < COUNT.len() {
+                for _ in 0..COUNT[n] {
+                    trees.push(name);
+                }
+            }
+        }
+
+        let mut trees: Vec<&str> = Vec::new();
+
+        select_trees(data.wind_from_direction, 0., "pine", &mut trees);
+        select_trees(data.wind_from_direction, 90., "east", &mut trees);
+        select_trees(data.wind_from_direction, 180., "palm", &mut trees);
+        select_trees(data.wind_from_direction, 270., "tree", &mut trees);
+
+        let mut rng = rand::thread_rng();
+        trees.shuffle(&mut rng);
+
+        let wind_index: &mut [usize] = match data.wind_speed {
+            ..0.4 => &mut [],
+            0.4..0.7 => &mut [0],
+            0.7..1.7 => &mut [1, 0, 0],
+            1.7..3.3 => &mut [1, 1, 0, 0],
+            3.3..5.2 => &mut [1, 2, 0, 0],
+            5.2..7.4 => &mut [1, 2, 2, 0],
+            7.4..9.8 => &mut [1, 2, 3, 0],
+            9.8..12.4 => &mut [2, 2, 3, 0],
+            _ => &mut [3, 3, 3, 3],
+        };
+
+        wind_index.shuffle(&mut rng);
+
+        let mut x_offset = x;
+        let mut tree_index = 0;
+
+        for &mut i in wind_index {
+            let offset = x_offset + 5;
+
+            if offset > line_points.len() as i64 {
+                break;
+            }
+
+            if let Some(name) = trees.get(tree_index) {
+                if let Some(&y) = line_points.get(&offset) {
+                    let tree = spriten(name, i);
+                    let y_offset = (y - tree.height() as i64) + 1;
+                    tree.overlay(&mut self.img, x_offset, y_offset);
+                }
+            }
+
+            x_offset += 9;
+            tree_index += 1;
         }
     }
 
