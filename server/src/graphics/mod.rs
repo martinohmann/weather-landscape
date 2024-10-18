@@ -22,6 +22,7 @@ use indexmap::IndexMap;
 use jiff::civil::time;
 use jiff::{SignedDuration, Timestamp, Zoned};
 use log::debug;
+use rand::Rng;
 use sprites::Sprite;
 use std::{
     io::Cursor,
@@ -48,6 +49,8 @@ pub fn render(data: &WeatherData) -> Result<Canvas> {
 
     canvas.draw_house(&ctx);
     canvas.draw_sun_and_moon(&ctx);
+    canvas.draw_clouds(ctx.data.current.cloud_area_fraction, 0, 5, ctx.x_offset);
+    canvas.draw_forecasts(&ctx);
     canvas.draw_midday_and_midnight(&ctx, &line_points);
     canvas.draw_temperature_extrema(&ctx, ctx.min_temperature);
     canvas.draw_temperature_extrema(&ctx, ctx.max_temperature);
@@ -131,6 +134,16 @@ impl Canvas {
         }
     }
 
+    fn draw_forecasts(&mut self, ctx: &RenderContext) {
+        let forecasts = &ctx.data.forecasts;
+
+        // Only draw a forecast sample for every 4 hours. It'll get too crowded otherwise.
+        for (i, forecast) in forecasts.iter().enumerate().step_by(4) {
+            let x = ctx.x_offset + (ctx.x_step * (i as i64 + 1));
+            self.draw_clouds(forecast.cloud_area_fraction, x, 5, ctx.x_step);
+        }
+    }
+
     fn draw_temperature_extremas(&mut self, ctx: &RenderContext) {
         self.draw_temperature_extrema(ctx, ctx.min_temperature);
         self.draw_temperature_extrema(ctx, ctx.max_temperature);
@@ -147,6 +160,30 @@ impl Canvas {
             let x = ctx.x_offset + (ctx.x_step * (i as i64 + 1));
             let y = ctx.temperature_to_y(data_point.air_temperature);
             self.draw_digits(x, y + 5, temperature.round() as i64);
+        }
+    }
+
+    fn draw_clouds(&mut self, percentage: f64, x: i64, y: i64, width: i64) {
+        let cloudset: &[usize] = match percentage {
+            2.0..5.0 => &[2],
+            5.0..10.0 => &[3, 2],
+            10.0..20.0 => &[5, 3, 2],
+            20.0..30.0 => &[10, 5],
+            30.0..40.0 => &[10, 10],
+            40.0..50.0 => &[10, 10, 5],
+            50.0..60.0 => &[30, 5],
+            60.0..70.0 => &[30, 10],
+            70.0..80.0 => &[30, 10, 5, 5],
+            80.0..90.0 => &[30, 10, 10],
+            90.0.. => &[50, 30, 10, 10, 5],
+            _ => &[],
+        };
+
+        let mut rng = rand::thread_rng();
+
+        for &n in cloudset {
+            let offset = rng.gen_range(0..width);
+            spriten("cloud", n).overlay(&mut self.img, x + offset, y);
         }
     }
 
