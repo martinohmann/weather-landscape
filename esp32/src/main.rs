@@ -24,6 +24,8 @@ pub struct Config {
     wifi_psk: &'static str,
     #[default(10)]
     deep_sleep_seconds: u64,
+    #[default(None)]
+    clear_after_seconds: Option<u64>,
     #[default("")]
     data_url: &'static str,
 }
@@ -83,12 +85,14 @@ fn run(peripherals: Peripherals, sysloop: EspSystemEventLoop) -> Result<()> {
     info!("Drawing image");
     epd.update_and_display_frame(&mut spi, &image_data, &mut delay)?;
 
-    thread::sleep(Duration::from_secs(60));
+    if let Some(secs) = CONFIG.clear_after_seconds {
+        thread::sleep(Duration::from_secs(secs));
 
-    info!("Clearing display");
-    let mut display = Display2in9::default();
-    display.clear(Color::White)?;
-    epd.update_and_display_frame(&mut spi, display.buffer(), &mut delay)?;
+        info!("Clearing display");
+        let mut display = Display2in9::default();
+        display.clear(Color::White)?;
+        epd.update_and_display_frame(&mut spi, display.buffer(), &mut delay)?;
+    }
 
     epd.sleep(&mut spi, &mut delay)?;
     Ok(())
