@@ -177,6 +177,7 @@ pub struct Coords {
 }
 
 #[derive(Debug, Clone, Copy, Default)]
+#[non_exhaustive]
 pub enum Condition {
     ClearSky,
     Cloudy,
