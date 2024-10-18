@@ -308,9 +308,8 @@ impl Canvas {
         wind_index.shuffle(&mut rng);
 
         let mut x_offset = x;
-        let mut tree_index = 0;
 
-        for &i in wind_index {
+        for (tree_index, &i) in wind_index.into_iter().enumerate() {
             let offset = x_offset + 5;
 
             if offset > line_points.len() as i64 {
@@ -325,7 +324,6 @@ impl Canvas {
             }
 
             x_offset += 9;
-            tree_index += 1;
         }
     }
 
