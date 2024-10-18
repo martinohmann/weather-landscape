@@ -56,8 +56,8 @@ pub fn render(data: &WeatherData) -> Result<Canvas> {
 
     canvas.draw_celestial_bodies(&ctx);
     canvas.draw_current_weather(&ctx, &line_points);
-    canvas.draw_midday_and_midnight(&ctx, &line_points);
     canvas.draw_forecasts(&ctx, &line_points);
+    canvas.draw_midday_and_midnight(&ctx, &line_points);
 
     for (x, y) in line_points {
         canvas.draw_pixel(x, y);
