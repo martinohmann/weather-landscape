@@ -28,6 +28,8 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+const HEAVY_RAIN: f64 = 5.0;
+const RAIN_FACTOR: f64 = 20.0;
 const SECONDS_DAY: f64 = 24.0 * 60.0 * 60.0;
 const BLACK: Rgba<u8> = Rgba([0, 0, 0, 255]);
 const WHITE: Rgba<u8> = Rgba([255, 255, 255, 255]);
@@ -47,9 +49,9 @@ pub fn render(data: &WeatherData) -> Result<Canvas> {
     debug!("{} line points: {:?}", line_points.len(), line_points);
 
     canvas.draw_celestial_bodies(&ctx);
-    canvas.draw_current_weather(&ctx);
+    canvas.draw_current_weather(&ctx, &line_points);
     canvas.draw_midday_and_midnight(&ctx, &line_points);
-    canvas.draw_forecasts(&ctx);
+    canvas.draw_forecasts(&ctx, &line_points);
 
     for (x, y) in line_points {
         canvas.draw_pixel(x, y);
@@ -135,21 +137,37 @@ impl Canvas {
         }
     }
 
-    fn draw_current_weather(&mut self, ctx: &RenderContext) {
+    fn draw_current_weather(&mut self, ctx: &RenderContext, line_points: &IndexMap<i64, i64>) {
         let weather = &ctx.data.current;
+        let cloud_height = sprite("cloud_02").height() as i64;
 
         self.draw_house(ctx);
         self.draw_clouds(weather.cloud_area_fraction, 0, 5, ctx.x_offset);
+        self.draw_rain(
+            weather.precipitation_amount,
+            0,
+            cloud_height + 5,
+            ctx.x_offset,
+            line_points,
+        );
         self.draw_temperature(ctx, weather.air_temperature, ctx.x_offset / 2);
     }
 
-    fn draw_forecasts(&mut self, ctx: &RenderContext) {
+    fn draw_forecasts(&mut self, ctx: &RenderContext, line_points: &IndexMap<i64, i64>) {
         let forecasts = &ctx.data.forecasts;
+        let cloud_height = sprite("cloud_02").height() as i64;
 
         // Only draw a forecast sample for every 4 hours. It'll get too crowded otherwise.
         for (i, forecast) in forecasts.iter().enumerate().step_by(4) {
             let x = ctx.forecast_x(i);
-            self.draw_clouds(forecast.cloud_area_fraction, x, 5, ctx.x_step);
+            self.draw_clouds(forecast.cloud_area_fraction, x, 5, ctx.x_step * 4);
+            self.draw_rain(
+                forecast.precipitation_amount,
+                x,
+                cloud_height + 5,
+                ctx.x_step * 4,
+                line_points,
+            );
         }
 
         self.draw_temperature_extrema(ctx, ctx.min_temperature);
@@ -195,6 +213,28 @@ impl Canvas {
         for &n in cloudset {
             let offset = rng.gen_range(0..width);
             spriten("cloud", n).overlay(&mut self.img, x + offset, y);
+        }
+    }
+
+    fn draw_rain(
+        &mut self,
+        value: f64,
+        x: i64,
+        y: i64,
+        width: i64,
+        line_points: &IndexMap<i64, i64>,
+    ) {
+        let r = 1.0 - (value / HEAVY_RAIN) / RAIN_FACTOR;
+
+        for x in x..x + width {
+            if let Some(&y_max) = line_points.get(&x) {
+                for y in (y..y_max).step_by(2) {
+                    if rand::random::<f64>() > r {
+                        self.draw_pixel(x, y);
+                        self.draw_pixel(x, y - 1);
+                    }
+                }
+            }
         }
     }
 
