@@ -71,7 +71,9 @@ impl Canvas {
     }
 
     fn draw_house(&mut self, ctx: &RenderContext) {
-        let house = if ctx.now < ctx.next_sunrise && ctx.next_sunrise < ctx.next_sunset {
+        let instant = ctx.instant.timestamp();
+
+        let house = if instant < ctx.next_sunrise && ctx.next_sunrise < ctx.next_sunset {
             sprite("house_01") // Night time, lights out!
         } else {
             sprite("house_00")
@@ -109,9 +111,13 @@ impl Canvas {
         hour: i8,
         line_points: &IndexMap<i64, i64>,
     ) {
-        let now = Zoned::now();
-        let mut time = now.with().time(time(hour, 0, 0, 0)).build().unwrap();
-        if time < now {
+        let mut time = ctx
+            .instant
+            .with()
+            .time(time(hour, 0, 0, 0))
+            .build()
+            .unwrap();
+        if time < ctx.instant {
             time = time.checked_add(SignedDuration::from_hours(24)).unwrap();
         }
 
@@ -122,9 +128,9 @@ impl Canvas {
             return;
         }
 
-        if let Some(y) = line_points.get(&x) {
+        if let Some(&y) = line_points.get(&x) {
             let sprite = sprite(name);
-            let y = *y - sprite.height() as i64;
+            let y = y - sprite.height() as i64;
             sprite.overlay(&mut self.img, x, y);
         }
     }
@@ -289,21 +295,23 @@ struct RenderContext<'a> {
     max_temperature: f64,
     // Controls how many pixels to render per degree celsius.
     degrees_per_pixel: f64,
-    now: Timestamp,
+    // The instant at which the render context was created.
+    instant: Zoned,
     next_sunrise: Timestamp,
     next_sunset: Timestamp,
 }
 
 impl<'a> RenderContext<'a> {
     fn create(data: &'a WeatherData, width: u32, height: u32) -> Result<Self> {
+        let (latitude, longitude) = (data.coords.latitude, data.coords.longitude);
         let x_offset = sprite("house_00").width() as i64;
         let x_step = (width as i64 - x_offset) / (data.forecasts.len() as i64 - 1);
         let y_step = (height as f64 * 0.39).round() as i64;
         let y_offset = (height as i64 / 2) + y_step;
-        let now = Timestamp::now();
+        let instant = Zoned::now();
 
-        let next_sunrise = sun::next_sunrise(data.coords.latitude, data.coords.longitude, now)?;
-        let next_sunset = sun::next_sunset(data.coords.latitude, data.coords.longitude, now)?;
+        let next_sunrise = sun::next_sunrise(latitude, longitude, instant.timestamp())?;
+        let next_sunset = sun::next_sunset(latitude, longitude, instant.timestamp())?;
 
         let temperatures: Vec<f64> = data
             .forecasts
@@ -344,14 +352,15 @@ impl<'a> RenderContext<'a> {
             min_temperature,
             max_temperature,
             degrees_per_pixel,
-            now,
+            instant,
             next_sunrise,
             next_sunset,
         })
     }
 
     fn timestamp_to_x(&self, timestamp: Timestamp) -> i64 {
-        let delta = timestamp.duration_since(self.now).as_secs_f64();
+        let instant = self.instant.timestamp();
+        let delta = timestamp.duration_since(instant).as_secs_f64();
         let width = self.width as f64 - self.x_offset as f64;
         ((delta / SECONDS_DAY) * width).round() as i64 + self.x_offset
     }
