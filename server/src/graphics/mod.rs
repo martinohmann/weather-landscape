@@ -48,7 +48,7 @@ pub fn render(data: &WeatherData) -> Result<Canvas> {
     debug!("{} line points: {:?}", line_points.len(), line_points);
 
     canvas.draw_house(&ctx);
-    canvas.draw_sun_and_moon(&ctx);
+    canvas.draw_celestial_bodies(&ctx);
     canvas.draw_clouds(ctx.data.current.cloud_area_fraction, 0, 5, ctx.x_offset);
     canvas.draw_forecasts(&ctx);
     canvas.draw_midday_and_midnight(&ctx, &line_points);
@@ -90,7 +90,7 @@ impl Canvas {
         self.draw_digits(ctx.x_offset / 2, y + 5, current_temperature.round() as i64);
     }
 
-    fn draw_sun_and_moon(&mut self, ctx: &RenderContext) {
+    fn draw_celestial_bodies(&mut self, ctx: &RenderContext) {
         let sun = sprite("sun_00");
         let moon = sprite("moon_00");
         let sun_x = ctx.timestamp_to_x(ctx.next_sunrise) - (sun.width() / 2) as i64;
