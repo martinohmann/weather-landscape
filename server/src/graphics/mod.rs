@@ -24,7 +24,6 @@ use jiff::{SignedDuration, Timestamp, Zoned};
 use log::debug;
 use sprites::Sprite;
 use std::{
-    cmp::Ordering,
     io::Cursor,
     ops::{Deref, DerefMut},
 };
@@ -78,17 +77,14 @@ impl Canvas {
         } else {
             sprite("house_00")
         };
-        let y = ctx.temperature_to_y(ctx.current_temperature);
+        let current_temperature = ctx.data.current.air_temperature;
+        let y = ctx.temperature_to_y(current_temperature);
         let house_y = y - house.height() as i64;
 
         debug!("placing house at (0, {house_y})");
         house.overlay(&mut self.img, 0, house_y);
 
-        self.draw_digits(
-            ctx.x_offset / 2,
-            y + 5,
-            ctx.current_temperature.round() as i64,
-        );
+        self.draw_digits(ctx.x_offset / 2, y + 5, current_temperature.round() as i64);
     }
 
     fn draw_sun_and_moon(&mut self, ctx: &RenderContext) {
@@ -246,8 +242,6 @@ struct RenderContext<'a> {
     x_step: i64,
     // Y-offset for the weather graph.
     y_offset: i64,
-    // The current temperature.
-    current_temperature: f64,
     // The minimum temperature from the forecast.
     min_temperature: f64,
     // The maximum temperature from the forecast.
@@ -284,15 +278,14 @@ impl<'a> RenderContext<'a> {
             return Err(Error::new("forecast misses temperature data"));
         }
 
-        let min_temperature = *temperatures
+        let current_temperature = data.current.air_temperature;
+
+        let min_temperature = temperatures
             .iter()
-            .min_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))
-            .unwrap();
-        let max_temperature = *temperatures
+            .fold(current_temperature, |a, &b| a.min(b));
+        let max_temperature = temperatures
             .iter()
-            .max_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))
-            .unwrap();
-        let current_temperature = temperatures[0];
+            .fold(current_temperature, |a, &b| a.max(b));
         let temperature_range = max_temperature - min_temperature;
 
         let degrees_per_pixel = if temperature_range < y_step as f64 {
@@ -308,7 +301,6 @@ impl<'a> RenderContext<'a> {
             x_step,
             x_offset,
             y_offset,
-            current_temperature,
             min_temperature,
             max_temperature,
             degrees_per_pixel,
@@ -336,7 +328,7 @@ impl<'a> RenderContext<'a> {
         let forecasts = &self.data.forecasts;
         let mut points: Vec<Coord2> = Vec::with_capacity(forecasts.len() + self.x_offset as usize);
 
-        let y = self.temperature_to_y(self.current_temperature);
+        let y = self.temperature_to_y(self.data.current.air_temperature);
 
         // Points for the line below the house.
         for x in 0..self.x_offset {
