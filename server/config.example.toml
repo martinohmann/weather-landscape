@@ -1,0 +1,12 @@
+# Make a copy of this file to `config.toml` and customize to your needs.
+#
+# Alternatively, you can also pass the configuration as environment variables
+# to the server.
+
+# The latitude of your location. Can also be set via the `LATITUDE` environment
+# variable.
+latitude = 52.516313944000835
+
+# The longitude of your location. Can also be set via the `LONGITUDE` environment
+# variable.
+longitude = 13.377667565271926

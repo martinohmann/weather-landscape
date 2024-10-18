@@ -22,7 +22,7 @@ rewrite seemed like an enjoyable project.
 > Adjust the `config.toml` to your needs.
 
 ```sh
-cp config.toml.example config.toml
+cp config.example.toml config.toml
 cargo run
 ```
 
@@ -53,7 +53,7 @@ cargo run
 > Adjust the `cfg.toml` to your needs.
 
 ```sh
-cp cfg.toml.example cfg.toml
+cp cfg.example.toml cfg.toml
 cargo run
 ```
 

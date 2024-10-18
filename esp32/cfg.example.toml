@@ -1,3 +1,6 @@
+# Make a copy of this file to `cfg.toml` and customize to your needs.
+#
+# The values in this file will get baked into the esp32 at compile time.
 [esp32-landscape-weather]
 # The URL to the image that is downloaded and displayed periodically.
 data_url = "http://192.168.123.456:8080/image.epd"
@@ -13,4 +16,8 @@ wifi_ssid = "my-wifi"
 wifi_psk = "supersecret"
 
 # If > 0, clear the display x seconds after drawing the image.
+# 
+# You usually don't need to configure this unless you're concerned about
+# burn-in on the e-paper display, or simple want to wipe it clean completely
+# before repurposing it for another project.
 clear_after_seconds = 0
