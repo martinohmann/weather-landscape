@@ -5,34 +5,43 @@ mod sun;
 mod weather;
 
 use actix_web::{
-    get, http::header::ContentType, middleware, web::Data, App, HttpResponse, HttpServer, Result,
+    get,
+    http::header::ContentType,
+    middleware,
+    web::{Data, Path},
+    App, HttpResponse, HttpServer, Result,
 };
 use config::AppConfig;
+use serde::Deserialize;
 use weather::Weather;
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+enum ImageFormat {
+    /// Bitmap
+    Bmp,
+    /// E-paper display
+    Epd,
+}
 
 #[get("/healthz")]
 async fn healthz() -> &'static str {
     "ok"
 }
 
-#[get("/image.bmp")]
-async fn image_bmp(weather: Data<Weather>) -> Result<HttpResponse> {
+#[get("/image.{format}")]
+async fn image(weather: Data<Weather>, format: Path<ImageFormat>) -> Result<HttpResponse> {
     let data = weather.get().await?;
     let image = graphics::render(&data)?;
 
-    Ok(HttpResponse::Ok()
-        .insert_header(ContentType(mime::IMAGE_BMP))
-        .body(image.bmp_bytes()?))
-}
-
-#[get("/image.epd")]
-async fn image_epd(weather: Data<Weather>) -> Result<HttpResponse> {
-    let data = weather.get().await?;
-    let image = graphics::render(&data)?;
+    let (content_type, body) = match format.into_inner() {
+        ImageFormat::Bmp => (mime::IMAGE_BMP, image.bmp_bytes()?),
+        ImageFormat::Epd => (mime::APPLICATION_OCTET_STREAM, image.epd_bytes()?),
+    };
 
     Ok(HttpResponse::Ok()
-        .insert_header(ContentType(mime::APPLICATION_OCTET_STREAM))
-        .body(image.epd_bytes()?))
+        .insert_header(ContentType(content_type))
+        .body(body))
 }
 
 #[actix_web::main]
@@ -48,8 +57,7 @@ async fn main() -> anyhow::Result<()> {
         App::new()
             .app_data(Data::new(config.clone()))
             .app_data(Data::new(weather.clone()))
-            .service(image_bmp)
-            .service(image_epd)
+            .service(image)
             .service(healthz)
             .wrap(middleware::Logger::default())
     })
