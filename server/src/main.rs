@@ -8,7 +8,7 @@ use actix_web::{
     get,
     http::header::ContentType,
     middleware,
-    web::{Data, Path},
+    web::{Data, Path, Query},
     App, HttpResponse, HttpServer, Result,
 };
 use config::AppConfig;
@@ -24,14 +24,29 @@ enum ImageFormat {
     Epd,
 }
 
+#[derive(Deserialize, Debug)]
+struct ImageRequest {
+    #[serde(default)]
+    cause_havoc: bool,
+}
+
 #[get("/healthz")]
 async fn healthz() -> &'static str {
     "ok"
 }
 
 #[get("/image.{format}")]
-async fn image(weather: Data<Weather>, format: Path<ImageFormat>) -> Result<HttpResponse> {
-    let data = weather.get().await?;
+async fn image(
+    weather: Data<Weather>,
+    format: Path<ImageFormat>,
+    query: Query<ImageRequest>,
+) -> Result<HttpResponse> {
+    let mut data = weather.get().await?;
+
+    if query.cause_havoc {
+        weather::cause_havoc(&mut data);
+    }
+
     let image = graphics::render(&data)?;
 
     let (content_type, body) = match format.into_inner() {

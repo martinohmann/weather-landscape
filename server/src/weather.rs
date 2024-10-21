@@ -1,9 +1,11 @@
 use crate::error::{Error, Result};
 use jiff::Timestamp;
+use log::info;
 use monsoon::{
     body::{Body, TimeSeries},
     Monsoon, Params, Response,
 };
+use rand::{seq::SliceRandom, Rng};
 use std::time::Duration;
 use std::{str::FromStr, sync::Arc};
 use tokio::sync::Mutex;
@@ -219,5 +221,34 @@ impl FromStr for Condition {
         };
 
         Ok(condition)
+    }
+}
+
+/// Adds a lot of randomness to the weather data. This is useful for testing.
+pub fn cause_havoc(weather: &mut WeatherData) {
+    info!("causing havoc in the weather data");
+
+    let conditions = &[
+        Condition::Fog,
+        Condition::Snow,
+        Condition::Sleet,
+        Condition::Rain,
+    ];
+
+    let mut rng = rand::thread_rng();
+
+    let mut add_randomness = |data: &mut DataPoint| {
+        data.air_temperature += rng.gen_range(-2.0..=2.0);
+        data.cloud_area_fraction += rng.gen_range(-50.0f64..50.0).clamp(0.0, 100.0);
+        data.condition = *conditions.choose(&mut rng).unwrap();
+        data.precipitation_amount += rng.gen_range(-5.0f64..5.0).clamp(0.0, 50.0);
+        data.wind_from_direction += rng.gen_range(-90.0f64..90.0).clamp(0.0, 360.0);
+        data.wind_speed += rng.gen_range(-10.0f64..=10.0).max(0.0);
+    };
+
+    add_randomness(&mut weather.current);
+
+    for data in &mut weather.forecasts {
+        add_randomness(data);
     }
 }
