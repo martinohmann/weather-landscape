@@ -1,6 +1,7 @@
 use super::{BLACK, TRANSPARENT, WHITE};
 use crate::error::Result;
 use image::{imageops, RgbaImage};
+use log::debug;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::OnceLock;
@@ -9,11 +10,10 @@ macro_rules! load_sprite {
     ($map:ident, $name:literal) => {
         $map.insert(
             $name,
-            Sprite::from_slice(include_bytes!(concat!(
-                "../../data/sprites/",
+            Sprite::from_slice(
                 $name,
-                ".png"
-            )))
+                include_bytes!(concat!("../../data/sprites/", $name, ".png")),
+            )
             .unwrap(),
         );
     };
@@ -93,10 +93,13 @@ pub(super) fn spriten(prefix: &str, n: usize) -> &'static Sprite {
 }
 
 #[derive(Debug)]
-pub(super) struct Sprite(RgbaImage);
+pub(super) struct Sprite {
+    name: &'static str,
+    img: RgbaImage,
+}
 
 impl Sprite {
-    fn from_slice(buf: &[u8]) -> Result<Self> {
+    fn from_slice(name: &'static str, buf: &[u8]) -> Result<Self> {
         let mut img = image::load_from_memory(buf)?.into_rgba8();
 
         // Make any non-black, non-white pixels transparent.
@@ -106,11 +109,12 @@ impl Sprite {
             }
         }
 
-        Ok(Sprite(img))
+        Ok(Sprite { name, img })
     }
 
     pub(super) fn overlay(&self, image: &mut RgbaImage, x: i64, y: i64) {
-        imageops::overlay(image, &self.0, x, y);
+        debug!("placing sprite {} at ({x}, {y})", self.name);
+        imageops::overlay(image, &self.img, x, y);
     }
 }
 
@@ -118,6 +122,6 @@ impl Deref for Sprite {
     type Target = RgbaImage;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.img
     }
 }

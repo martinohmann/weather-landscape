@@ -22,7 +22,7 @@ use image::{imageops, ImageFormat, Rgba, RgbaImage};
 use indexmap::IndexMap;
 use jiff::civil::time;
 use jiff::{SignedDuration, Timestamp, Zoned};
-use log::debug;
+use log::{debug, trace};
 use rand::seq::SliceRandom;
 use rand::Rng;
 use std::{
@@ -48,17 +48,16 @@ pub fn render(data: &WeatherData) -> Result<Canvas> {
     let mut canvas = Canvas::new(HEIGHT, WIDTH);
     let ctx = RenderContext::create(data, canvas.width(), canvas.height())?;
 
-    debug!("rendering context {ctx:?}");
+    debug!("rendering with context: {ctx:?}");
 
     let line_points = ctx.compute_line_points();
-
-    debug!("{} line points: {:?}", line_points.len(), line_points);
 
     canvas.draw_celestial_bodies(&ctx);
     canvas.draw_current_weather(&ctx, &line_points);
     canvas.draw_forecasts(&ctx, &line_points);
     canvas.draw_midday_and_midnight(&ctx, &line_points);
 
+    // Draw the temperature graph.
     for (x, y) in line_points {
         canvas.draw_pixel(x, y);
     }
@@ -89,7 +88,6 @@ impl Canvas {
 
         let y = ctx.temperature_to_y(ctx.data.current.air_temperature) - house.height() as i64;
 
-        debug!("placing house at (0, {y})");
         house.overlay(&mut self.img, 0, y);
     }
 
@@ -97,13 +95,11 @@ impl Canvas {
         let sun = sprite("sun_00");
         let sun_x = ctx.timestamp_to_x(ctx.next_sunrise) - (sun.width() / 2) as i64;
 
-        debug!("placing sun at ({sun_x},0)");
         sun.overlay(&mut self.img, sun_x, 0);
 
         let moon = sprite("moon_00");
         let moon_x = ctx.timestamp_to_x(ctx.next_sunset) - (moon.width() / 4) as i64;
 
-        debug!("placing moon at ({moon_x},0)");
         moon.overlay(&mut self.img, moon_x, 0);
     }
 
@@ -338,8 +334,6 @@ impl Canvas {
     }
 
     fn draw_digits(&mut self, x: i64, y: i64, value: i64) {
-        debug!("drawing digits for value {value} at ({x}, {y})");
-
         let sign = if value >= 0 {
             sprite("digit_10") // plus
         } else {
@@ -371,6 +365,7 @@ impl Canvas {
 
     fn draw_pixel(&mut self, x: i64, y: i64) {
         if x >= 0 && x < self.width() as i64 && y >= 0 && y < self.height() as i64 {
+            trace!("drawing pixel at ({x}, {y})");
             self.img.put_pixel(x as u32, y as u32, BLACK);
         }
     }
