@@ -130,6 +130,7 @@ pub struct DataPoint {
     pub air_temperature: f64,
     pub cloud_area_fraction: f64,
     pub condition: Condition,
+    pub fog_area_fraction: f64,
     pub precipitation_amount: f64,
     pub timestamp: Timestamp,
     pub wind_from_direction: f64,
@@ -164,6 +165,7 @@ impl DataPoint {
             air_temperature: details.air_temperature.unwrap_or_default(),
             cloud_area_fraction: details.cloud_area_fraction.unwrap_or_default(),
             condition,
+            fog_area_fraction: details.fog_area_fraction.unwrap_or_default(),
             precipitation_amount,
             timestamp,
             wind_from_direction: details.wind_from_direction.unwrap_or_default(),
@@ -241,6 +243,7 @@ pub fn cause_havoc(weather: &mut WeatherData) {
         data.air_temperature += rng.gen_range(-2.0..=2.0);
         data.cloud_area_fraction += rng.gen_range(-50.0f64..50.0).clamp(0.0, 100.0);
         data.condition = *conditions.choose(&mut rng).unwrap();
+        data.fog_area_fraction += rng.gen_range(-50.0f64..50.0).clamp(0.0, 100.0);
         data.precipitation_amount += rng.gen_range(-5.0f64..5.0).clamp(0.0, 50.0);
         data.wind_from_direction += rng.gen_range(-90.0f64..90.0).clamp(0.0, 360.0);
         data.wind_speed += rng.gen_range(-10.0f64..=10.0).max(0.0);
