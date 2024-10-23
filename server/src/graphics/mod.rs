@@ -143,15 +143,9 @@ impl Canvas {
         let weather = &ctx.data.current;
         let cloud_height = sprite("cloud_02").height() as i64;
 
-        self.draw_fog(
-            weather.fog_area_fraction,
-            0,
-            cloud_height + 10,
-            ctx.x_offset,
-            line_points,
-        );
         self.draw_house(ctx);
         self.draw_clouds(weather.cloud_area_fraction, 0, 5, ctx.x_offset);
+        self.draw_fog(weather, 0, cloud_height + 10, ctx.x_offset, line_points);
         self.draw_precipitation(weather, 0, cloud_height + 5, ctx.x_offset, line_points);
         self.draw_temperature(ctx, weather.air_temperature, ctx.x_offset / 2);
     }
@@ -163,15 +157,9 @@ impl Canvas {
         // Only draw a forecast sample for every 4 hours. It'll get too crowded otherwise.
         for (i, forecast) in forecasts.iter().enumerate().step_by(4) {
             let x = ctx.forecast_x(i);
-            self.draw_fog(
-                forecast.fog_area_fraction,
-                x,
-                cloud_height + 10,
-                ctx.x_step * 4,
-                line_points,
-            );
             self.draw_clouds(forecast.cloud_area_fraction, x, 5, ctx.x_step * 4);
             self.draw_trees(forecast, x, line_points);
+            self.draw_fog(forecast, x, cloud_height + 10, ctx.x_step * 4, line_points);
             self.draw_precipitation(forecast, x, cloud_height + 5, ctx.x_step * 4, line_points);
         }
 
@@ -223,7 +211,7 @@ impl Canvas {
 
     fn draw_fog(
         &mut self,
-        percentage: f64,
+        data: &DataPoint,
         x: i64,
         y: i64,
         width: i64,
@@ -234,23 +222,23 @@ impl Canvas {
             return;
         };
 
-        let fog_width = 15;
+        let fog_width = width / 2;
         let y_step = 6;
         let y_range = (y_max - y) / 2;
         let mut rng = rand::thread_rng();
 
         for y_off in (0..y_range).step_by(y_step) {
             let y_pos = y + y_off;
-            let perc = (y_off as f64 / y_range as f64) * 100.0;
+            let percentage = (y_off as f64 / y_range as f64) * 100.0;
 
-            if perc > percentage {
+            if data.fog_area_fraction <= percentage {
                 break;
             }
 
             let mut x_pos = x;
 
             loop {
-                x_pos += rng.gen_range(3..10);
+                x_pos += rng.gen_range(3..fog_width / 2);
 
                 if x_pos + fog_width > x_max {
                     break;
@@ -258,9 +246,7 @@ impl Canvas {
 
                 for i in 0..=fog_width {
                     let x = x_pos + i;
-
-                    let y_off = (i as f64 + 2.0).sin().round() as i64;
-                    let y = y_pos + y_off;
+                    let y = y_pos + (i as f64 + 2.0).sin().round() as i64;
 
                     self.draw_pixel(x, y);
                 }
