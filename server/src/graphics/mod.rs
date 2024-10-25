@@ -3,10 +3,10 @@ mod sprites;
 
 use self::curve::fit_curve_to_points;
 use self::sprites::{sprite, spriten};
+use crate::sun::Sun;
 use crate::weather::{Condition, DataPoint};
 use crate::{
     error::{Error, Result},
-    sun,
     weather::WeatherData,
 };
 use anyhow::anyhow;
@@ -29,6 +29,7 @@ use std::{
     io::Cursor,
     ops::{Deref, DerefMut},
 };
+use sun::SunPhase;
 
 const HEAVY_RAIN: f64 = 5.0;
 const RAIN_FACTOR: f64 = 20.0;
@@ -78,9 +79,11 @@ impl Canvas {
     }
 
     fn draw_house(&mut self, ctx: &RenderContext) {
-        let instant = ctx.instant.timestamp();
+        let now = ctx.instant.timestamp();
 
-        let house = if instant < ctx.next_sunrise && ctx.next_sunrise < ctx.next_sunset {
+        let house = if now > ctx.sun.phase(now, SunPhase::Sunset)
+            || now < ctx.sun.phase(now, SunPhase::Sunrise)
+        {
             sprite("house_01") // Night time, lights out!
         } else {
             sprite("house_00")
@@ -93,12 +96,14 @@ impl Canvas {
 
     fn draw_celestial_bodies(&mut self, ctx: &RenderContext) {
         let sun = sprite("sun_00");
-        let sun_x = ctx.timestamp_to_x(ctx.next_sunrise) - (sun.width() / 2) as i64;
+        let next_sunrise = ctx.sun.next_phase(&ctx.instant, SunPhase::Sunrise);
+        let sun_x = ctx.timestamp_to_x(next_sunrise) - (sun.width() / 2) as i64;
 
         sun.overlay(&mut self.img, sun_x, 0);
 
         let moon = sprite("moon_00");
-        let moon_x = ctx.timestamp_to_x(ctx.next_sunset) - (moon.width() / 4) as i64;
+        let next_sunset = ctx.sun.next_phase(&ctx.instant, SunPhase::Sunset);
+        let moon_x = ctx.timestamp_to_x(next_sunset) - (moon.width() / 4) as i64;
 
         moon.overlay(&mut self.img, moon_x, 0);
     }
@@ -465,6 +470,7 @@ impl DerefMut for Canvas {
 #[derive(Debug)]
 struct RenderContext<'a> {
     data: &'a WeatherData,
+    sun: Sun,
     width: u32,
     // X-offset for the weather graph.
     x_offset: i64,
@@ -480,8 +486,6 @@ struct RenderContext<'a> {
     degrees_per_pixel: f64,
     // The instant at which the render context was created.
     instant: Zoned,
-    next_sunrise: Timestamp,
-    next_sunset: Timestamp,
 }
 
 impl<'a> RenderContext<'a> {
@@ -493,8 +497,7 @@ impl<'a> RenderContext<'a> {
         let y_offset = (height as i64 / 2) + y_step;
         let instant = Zoned::now();
 
-        let next_sunrise = sun::next_sunrise(latitude, longitude, instant.timestamp())?;
-        let next_sunset = sun::next_sunset(latitude, longitude, instant.timestamp())?;
+        let sun = Sun::new(latitude, longitude);
 
         let temperatures: Vec<f64> = data
             .forecasts
@@ -528,6 +531,7 @@ impl<'a> RenderContext<'a> {
 
         Ok(RenderContext {
             data,
+            sun,
             width,
             x_step,
             x_offset,
@@ -536,8 +540,6 @@ impl<'a> RenderContext<'a> {
             max_temperature,
             degrees_per_pixel,
             instant,
-            next_sunrise,
-            next_sunset,
         })
     }
 

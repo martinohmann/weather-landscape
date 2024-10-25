@@ -1,57 +1,60 @@
-use crate::error::Result;
-use jiff::tz::TimeZone;
+//! Helpers to calculate the time of sun phases.
 use jiff::{Timestamp, ToSpan};
+use sun::SunPhase;
 
-pub(crate) fn next_sunrise(
-    latitude: f64,
-    longitude: f64,
-    timestamp: Timestamp,
-) -> Result<Timestamp> {
-    next_sunrise_sunset(latitude, longitude, timestamp, |(sunrise, _)| sunrise)
+/// Provides the timestamps of sun phases for a certain location.
+#[derive(Debug, Clone, Copy)]
+pub struct Sun {
+    lat: f64,
+    lon: f64,
 }
 
-pub(crate) fn next_sunset(
-    latitude: f64,
-    longitude: f64,
-    timestamp: Timestamp,
-) -> Result<Timestamp> {
-    next_sunrise_sunset(latitude, longitude, timestamp, |(_, sunset)| sunset)
-}
-
-fn next_sunrise_sunset<F>(
-    latitude: f64,
-    longitude: f64,
-    timestamp: Timestamp,
-    f: F,
-) -> Result<Timestamp>
-where
-    F: Fn((Timestamp, Timestamp)) -> Timestamp,
-{
-    let next = sunrise_sunset(latitude, longitude, timestamp).map(&f)?;
-    if next >= timestamp {
-        return Ok(next);
+impl Sun {
+    /// Creates a new `Sun` for the location at `lat`/`lon`.
+    pub fn new(lat: f64, lon: f64) -> Self {
+        Sun { lat, lon }
     }
 
-    let next_day = timestamp.checked_add(24.hours())?;
-    sunrise_sunset(latitude, longitude, next_day).map(&f)
+    /// Calculates the time for the next [`SunPhase`] relative to the given date. The returned
+    /// `Timestamp` is guaranteed to be greater that `ts`.
+    pub fn next_phase<T: Into<Timestamp>>(&self, ts: T, sun_phase: SunPhase) -> Timestamp {
+        let ts = ts.into();
+        let phase_time = self.phase(ts, sun_phase);
+        if phase_time > ts {
+            return phase_time;
+        }
+
+        let next_day = ts.checked_add(24.hours()).expect("timestamp overflow");
+        self.phase(next_day, sun_phase)
+    }
+
+    /// Calculates the time for the given [`SunPhase`] at a given date.
+    pub fn phase<T: Into<Timestamp>>(&self, ts: T, sun_phase: SunPhase) -> Timestamp {
+        let ts = ts.into();
+        let now_ms = ts.as_millisecond();
+        let phase_ms = sun::time_at_phase(now_ms, sun_phase, self.lat, self.lon, 0.0);
+        Timestamp::from_millisecond(phase_ms).expect("timestamp out of bounds")
+    }
 }
 
-fn sunrise_sunset(
-    latitude: f64,
-    longitude: f64,
-    timestamp: Timestamp,
-) -> Result<(Timestamp, Timestamp)> {
-    let date = timestamp.to_zoned(TimeZone::UTC);
-    let (sunrise_secs, sunset_secs) = sunrise::sunrise_sunset(
-        latitude,
-        longitude,
-        date.year().into(),
-        date.month().try_into().expect("invalid month"),
-        date.day().try_into().expect("invalid day"),
-    );
+#[cfg(test)]
+mod test {
+    use super::*;
 
-    let sunrise = Timestamp::from_second(sunrise_secs)?;
-    let sunset = Timestamp::from_second(sunset_secs)?;
+    #[test]
+    fn sun() {
+        use SunPhase::*;
 
-    Ok((sunrise, sunset))
+        let ts = |s: &str| -> Timestamp { s.parse().unwrap() };
+        let sun = Sun::new(52.0, 13.0);
+        let date = ts("2024-10-25T15:14:00Z");
+
+        // Phase did not happen yet on `date`.
+        assert_eq!(sun.phase(date, Sunset), ts("2024-10-25T15:54:39.775Z"));
+        assert_eq!(sun.next_phase(date, Sunset), ts("2024-10-25T15:54:39.775Z"));
+
+        // Phase already happened on `date`.
+        assert_eq!(sun.phase(date, Dawn), ts("2024-10-25T05:16:54.881Z"));
+        assert_eq!(sun.next_phase(date, Dawn), ts("2024-10-26T05:18:36.694Z"));
+    }
 }
