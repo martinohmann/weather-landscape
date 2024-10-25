@@ -18,7 +18,7 @@ use epd_waveshare::{
     graphics::VarDisplay,
 };
 use flo_curves::Coord2;
-use image::{imageops, ImageFormat, Rgba, RgbaImage};
+use image::{imageops, ImageFormat, Pixel, Rgba, RgbaImage};
 use indexmap::IndexMap;
 use jiff::civil::time;
 use jiff::{SignedDuration, Timestamp, Zoned};
@@ -29,7 +29,7 @@ use std::{
     io::Cursor,
     ops::{Deref, DerefMut},
 };
-use sun::SunPhase;
+use sun::SunPhase::*;
 
 const HEAVY_RAIN: f64 = 5.0;
 const RAIN_FACTOR: f64 = 20.0;
@@ -63,6 +63,15 @@ pub fn render(data: &WeatherData) -> Result<Canvas> {
         canvas.draw_pixel(x, y);
     }
 
+    let now = ctx.instant.timestamp();
+
+    if ctx.sun.is_before(now, Dawn) || ctx.sun.is_after(now, Dusk) {
+        // Enable night mode.
+        for pixel in canvas.pixels_mut() {
+            pixel.invert();
+        }
+    }
+
     Ok(canvas)
 }
 
@@ -81,11 +90,13 @@ impl Canvas {
     fn draw_house(&mut self, ctx: &RenderContext) {
         let now = ctx.instant.timestamp();
 
-        let house = if now > ctx.sun.phase(now, SunPhase::Sunset)
-            || now < ctx.sun.phase(now, SunPhase::Sunrise)
+        let house = if ctx.sun.is_between(now, Sunset, Night)
+            || ctx.sun.is_between(now, NightEnd, Sunrise)
         {
-            sprite("house_01") // Night time, lights out!
+            // It's dark outside, lights on.
+            sprite("house_01")
         } else {
+            // It's either day time or late at night, lights out in any case.
             sprite("house_00")
         };
 
@@ -96,13 +107,13 @@ impl Canvas {
 
     fn draw_celestial_bodies(&mut self, ctx: &RenderContext) {
         let sun = sprite("sun_00");
-        let next_sunrise = ctx.sun.next_phase(&ctx.instant, SunPhase::Sunrise);
+        let next_sunrise = ctx.sun.next_phase(&ctx.instant, Sunrise);
         let sun_x = ctx.timestamp_to_x(next_sunrise) - (sun.width() / 2) as i64;
 
         sun.overlay(&mut self.img, sun_x, 0);
 
         let moon = sprite("moon_00");
-        let next_sunset = ctx.sun.next_phase(&ctx.instant, SunPhase::Sunset);
+        let next_sunset = ctx.sun.next_phase(&ctx.instant, Sunset);
         let moon_x = ctx.timestamp_to_x(next_sunset) - (moon.width() / 4) as i64;
 
         moon.overlay(&mut self.img, moon_x, 0);
