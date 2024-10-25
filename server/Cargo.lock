@@ -1423,7 +1423,7 @@ dependencies = [
  "monsoon",
  "rand",
  "serde",
- "sunrise",
+ "sun",
  "thiserror",
  "tokio",
  "tower",
@@ -2507,13 +2507,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "sunrise"
-version = "1.0.1"
+name = "sun"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3217c5830416956b1f2dc731f526150a82c144ebe83d2f0e78853c8356a22ada"
-dependencies = [
- "chrono",
-]
+checksum = "9ee651f4a9b6f29759b0636638c8140836bcdc28ed2c5f332b71c5911a439433"
 
 [[package]]
 name = "syn"
