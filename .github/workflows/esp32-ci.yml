@@ -2,9 +2,11 @@ name: Continuous Integration - esp32
 
 on:
   push:
-    paths-ignore:
-      - "**/README.md"
+    paths:
+      - "esp32/**"
   pull_request:
+    paths:
+      - "esp32/**"
   workflow_dispatch:
 
 env:

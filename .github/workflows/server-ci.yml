@@ -2,9 +2,11 @@ name: Continuous Integration - server
 
 on:
   push:
-    paths-ignore:
-      - "**/README.md"
+    paths:
+      - "server/**"
   pull_request:
+    paths:
+      - "server/**"
   workflow_dispatch:
 
 env:
