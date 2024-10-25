@@ -3,11 +3,10 @@ mod sprites;
 
 use self::curve::fit_curve_to_points;
 use self::sprites::{sprite, spriten};
-use crate::sun::Sun;
-use crate::weather::{Condition, DataPoint};
 use crate::{
     error::{Error, Result},
-    weather::WeatherData,
+    sun::Sun,
+    weather::{Condition, DataPoint, WeatherData},
 };
 use anyhow::anyhow;
 use embedded_graphics::prelude::*;
@@ -20,11 +19,9 @@ use epd_waveshare::{
 use flo_curves::Coord2;
 use image::{imageops, ImageFormat, Pixel, Rgba, RgbaImage};
 use indexmap::IndexMap;
-use jiff::civil::time;
-use jiff::{SignedDuration, Timestamp, Zoned};
+use jiff::{civil::time, tz::TimeZone, SignedDuration, Timestamp};
 use log::{debug, trace};
-use rand::seq::SliceRandom;
-use rand::Rng;
+use rand::{seq::SliceRandom, Rng};
 use std::{
     io::Cursor,
     ops::{Deref, DerefMut},
@@ -63,9 +60,7 @@ pub fn render(data: &WeatherData) -> Result<Canvas> {
         canvas.draw_pixel(x, y);
     }
 
-    let now = ctx.instant.timestamp();
-
-    if ctx.sun.is_before(now, Dawn) || ctx.sun.is_after(now, Dusk) {
+    if ctx.sun.is_before(ctx.instant, Dawn) || ctx.sun.is_after(ctx.instant, Dusk) {
         // Enable night mode.
         for pixel in canvas.pixels_mut() {
             pixel.invert();
@@ -88,10 +83,8 @@ impl Canvas {
     }
 
     fn draw_house(&mut self, ctx: &RenderContext) {
-        let now = ctx.instant.timestamp();
-
-        let house = if ctx.sun.is_between(now, Sunset, Night)
-            || ctx.sun.is_between(now, NightEnd, Sunrise)
+        let house = if ctx.sun.is_between(ctx.instant, Sunset, Night)
+            || ctx.sun.is_between(ctx.instant, NightEnd, Sunrise)
         {
             // It's dark outside, lights on.
             sprite("house_01")
@@ -107,13 +100,13 @@ impl Canvas {
 
     fn draw_celestial_bodies(&mut self, ctx: &RenderContext) {
         let sun = sprite("sun_00");
-        let next_sunrise = ctx.sun.next_phase(&ctx.instant, Sunrise);
+        let next_sunrise = ctx.sun.next_phase(ctx.instant, Sunrise);
         let sun_x = ctx.timestamp_to_x(next_sunrise) - (sun.width() / 2) as i64;
 
         sun.overlay(&mut self.img, sun_x, 0);
 
         let moon = sprite("moon_00");
-        let next_sunset = ctx.sun.next_phase(&ctx.instant, Sunset);
+        let next_sunset = ctx.sun.next_phase(ctx.instant, Sunset);
         let moon_x = ctx.timestamp_to_x(next_sunset) - (moon.width() / 4) as i64;
 
         moon.overlay(&mut self.img, moon_x, 0);
@@ -131,13 +124,9 @@ impl Canvas {
         hour: i8,
         line_points: &IndexMap<i64, i64>,
     ) {
-        let mut time = ctx
-            .instant
-            .with()
-            .time(time(hour, 0, 0, 0))
-            .build()
-            .unwrap();
-        if time < ctx.instant {
+        let local_time = ctx.instant.to_zoned(TimeZone::system());
+        let mut time = local_time.with().time(time(hour, 0, 0, 0)).build().unwrap();
+        if time < local_time {
             time = time.checked_add(SignedDuration::from_hours(24)).unwrap();
         }
 
@@ -496,7 +485,7 @@ struct RenderContext<'a> {
     // Controls how many pixels to render per degree celsius.
     degrees_per_pixel: f64,
     // The instant at which the render context was created.
-    instant: Zoned,
+    instant: Timestamp,
 }
 
 impl<'a> RenderContext<'a> {
@@ -506,7 +495,7 @@ impl<'a> RenderContext<'a> {
         let x_step = (width as i64 - x_offset) / (data.forecasts.len() as i64 - 1);
         let y_step = (height as f64 * 0.39).round() as i64;
         let y_offset = (height as i64 / 2) + y_step;
-        let instant = Zoned::now();
+        let instant = Timestamp::now();
 
         let sun = Sun::new(latitude, longitude);
 
@@ -555,8 +544,7 @@ impl<'a> RenderContext<'a> {
     }
 
     fn timestamp_to_x(&self, timestamp: Timestamp) -> i64 {
-        let instant = self.instant.timestamp();
-        let delta = timestamp.duration_since(instant).as_secs_f64();
+        let delta = timestamp.duration_since(self.instant).as_secs_f64();
         let width = self.width as f64 - self.x_offset as f64;
         ((delta / SECONDS_DAY) * width).round() as i64 + self.x_offset
     }

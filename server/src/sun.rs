@@ -17,11 +17,10 @@ impl Sun {
 
     /// Calculates the time for the next [`SunPhase`] relative to the given date. The returned
     /// `Timestamp` is guaranteed to be greater that `ts`.
-    pub fn next_phase<T: Into<Timestamp>>(&self, ts: T, phase: SunPhase) -> Timestamp {
-        let ts = ts.into();
-        let phase_time = self.phase(ts, phase);
-        if phase_time > ts {
-            return phase_time;
+    pub fn next_phase(&self, ts: Timestamp, phase: SunPhase) -> Timestamp {
+        let phase_ts = self.phase(ts, phase);
+        if phase_ts > ts {
+            return phase_ts;
         }
 
         let next_day = ts.checked_add(24.hours()).expect("timestamp overflow");
@@ -29,25 +28,20 @@ impl Sun {
     }
 
     /// Calculates the time for the given [`SunPhase`] at a given date.
-    pub fn phase<T: Into<Timestamp>>(&self, ts: T, phase: SunPhase) -> Timestamp {
-        let ts = ts.into();
+    pub fn phase(&self, ts: Timestamp, phase: SunPhase) -> Timestamp {
         let now_ms = ts.as_millisecond();
         let phase_ms = sun::time_at_phase(now_ms, phase, self.lat, self.lon, 0.0);
         Timestamp::from_millisecond(phase_ms).expect("timestamp out of bounds")
     }
 
     /// Returns `true` if `ts` is before the given [`SunPhase`] on the same day.
-    pub fn is_before<T: Into<Timestamp>>(&self, ts: T, phase: SunPhase) -> bool {
-        let ts = ts.into();
-        let phase_ts = self.phase(ts, phase);
-        ts < phase_ts
+    pub fn is_before(&self, ts: Timestamp, phase: SunPhase) -> bool {
+        ts < self.phase(ts, phase)
     }
 
     /// Returns `true` if `ts` is after the given [`SunPhase`] on the same day.
-    pub fn is_after<T: Into<Timestamp>>(&self, ts: T, phase: SunPhase) -> bool {
-        let ts = ts.into();
-        let phase_ts = self.phase(ts, phase);
-        phase_ts < ts
+    pub fn is_after(&self, ts: Timestamp, phase: SunPhase) -> bool {
+        self.phase(ts, phase) < ts
     }
 
     /// Returns `true` if `ts` is between the [`SunPhase`]s given by `start` and `end`.
@@ -57,8 +51,7 @@ impl Sun {
     /// # Panics
     ///
     /// If `start` >= `end`, this method panics.
-    pub fn is_between<T: Into<Timestamp>>(&self, ts: T, start: SunPhase, end: SunPhase) -> bool {
-        let ts = ts.into();
+    pub fn is_between(&self, ts: Timestamp, start: SunPhase, end: SunPhase) -> bool {
         let start_ts = self.phase(ts, start);
         let end_ts = self.phase(ts, end);
 
