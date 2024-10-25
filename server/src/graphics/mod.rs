@@ -28,12 +28,6 @@ use std::{
 };
 use sun::SunPhase::*;
 
-const HEAVY_RAIN: f64 = 5.0;
-const RAIN_FACTOR: f64 = 20.0;
-const HEAVY_SLEET: f64 = 5.0;
-const SLEET_FACTOR: f64 = 15.0;
-const HEAVY_SNOW: f64 = 5.0;
-const SNOW_FACTOR: f64 = 10.0;
 const SECONDS_DAY: f64 = 24.0 * 60.0 * 60.0;
 const BLACK: Rgba<u8> = Rgba([0, 0, 0, 255]);
 const WHITE: Rgba<u8> = Rgba([255, 255, 255, 255]);
@@ -275,9 +269,9 @@ impl Canvas {
         }
 
         let (heaviness, factor) = match data.condition {
-            Condition::Snow => (HEAVY_SNOW, SNOW_FACTOR),
-            Condition::Sleet => (HEAVY_SLEET, SLEET_FACTOR),
-            _ => (HEAVY_RAIN, RAIN_FACTOR),
+            Condition::Snow => (5.0, 10.0),
+            Condition::Sleet => (5.0, 15.0),
+            _ => (5.0, 20.0),
         };
 
         let r = 1.0 - (data.precipitation_amount / heaviness) / factor;
