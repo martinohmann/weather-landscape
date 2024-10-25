@@ -18,11 +18,11 @@ use epd_waveshare::{
 };
 use flo_curves::Coord2;
 use image::{imageops, ImageFormat, Pixel, Rgba, RgbaImage};
-use indexmap::IndexMap;
 use jiff::{civil::time, tz::TimeZone, SignedDuration, Timestamp};
 use log::{debug, trace};
 use rand::{seq::SliceRandom, Rng};
 use std::{
+    collections::BTreeMap,
     io::Cursor,
     ops::{Deref, DerefMut},
 };
@@ -103,7 +103,7 @@ impl Canvas {
         moon.overlay(&mut self.img, moon_x, 0);
     }
 
-    fn draw_midday_and_midnight(&mut self, ctx: &RenderContext, line_points: &IndexMap<i64, i64>) {
+    fn draw_midday_and_midnight(&mut self, ctx: &RenderContext, line_points: &BTreeMap<i64, i64>) {
         self.draw_flower(ctx, "flower_00", 0, line_points);
         self.draw_flower(ctx, "flower_01", 12, line_points);
     }
@@ -113,7 +113,7 @@ impl Canvas {
         ctx: &RenderContext,
         name: &str,
         hour: i8,
-        line_points: &IndexMap<i64, i64>,
+        line_points: &BTreeMap<i64, i64>,
     ) {
         let local_time = ctx.instant.to_zoned(TimeZone::system());
         let mut time = local_time.with().time(time(hour, 0, 0, 0)).build().unwrap();
@@ -135,7 +135,7 @@ impl Canvas {
         }
     }
 
-    fn draw_current_weather(&mut self, ctx: &RenderContext, line_points: &IndexMap<i64, i64>) {
+    fn draw_current_weather(&mut self, ctx: &RenderContext, line_points: &BTreeMap<i64, i64>) {
         let weather = &ctx.data.current;
         let cloud_height = sprite("cloud_02").height() as i64;
 
@@ -146,7 +146,7 @@ impl Canvas {
         self.draw_temperature(ctx, weather.air_temperature, ctx.x_offset / 2);
     }
 
-    fn draw_forecasts(&mut self, ctx: &RenderContext, line_points: &IndexMap<i64, i64>) {
+    fn draw_forecasts(&mut self, ctx: &RenderContext, line_points: &BTreeMap<i64, i64>) {
         let forecasts = &ctx.data.forecasts;
         let cloud_height = sprite("cloud_02").height() as i64;
 
@@ -211,7 +211,7 @@ impl Canvas {
         x: i64,
         y: i64,
         width: i64,
-        line_points: &IndexMap<i64, i64>,
+        line_points: &BTreeMap<i64, i64>,
     ) {
         let x_max = x + width;
         let Some(&y_max) = (x..x_max).filter_map(|x| line_points.get(&x)).min() else {
@@ -258,7 +258,7 @@ impl Canvas {
         x: i64,
         y: i64,
         width: i64,
-        line_points: &IndexMap<i64, i64>,
+        line_points: &BTreeMap<i64, i64>,
     ) {
         if data.precipitation_amount <= 0.0 {
             // There's nothing that could fall from the sky.
@@ -292,7 +292,7 @@ impl Canvas {
         }
     }
 
-    fn draw_trees(&mut self, data: &DataPoint, x: i64, line_points: &IndexMap<i64, i64>) {
+    fn draw_trees(&mut self, data: &DataPoint, x: i64, line_points: &BTreeMap<i64, i64>) {
         // @FIXME(mohmann): Simplify this complicated method.
 
         fn direction_distance(a: f64, b: f64) -> f64 {
@@ -555,7 +555,7 @@ impl<'a> RenderContext<'a> {
         self.x_offset + (self.x_step * (i as i64 + 1))
     }
 
-    fn compute_line_points(&self) -> IndexMap<i64, i64> {
+    fn compute_line_points(&self) -> BTreeMap<i64, i64> {
         // @FIXME(mohmann): now that we're at 24 forecasts data points again, it's probably enough
         // to just connect the dots with lines instead of having all this curve fitting code
         // around.
@@ -577,6 +577,6 @@ impl<'a> RenderContext<'a> {
         }
 
         // The heavy lifting.
-        fit_curve_to_points(&points, 0.1).into_iter().collect()
+        fit_curve_to_points(&points, 0.1)
     }
 }

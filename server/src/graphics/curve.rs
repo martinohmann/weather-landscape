@@ -1,10 +1,11 @@
 use flo_curves::bezier::{BezierCurveFactory, Coord2, Curve};
 use imageproc::drawing::BresenhamLineIter;
+use std::collections::BTreeMap;
 
-pub fn fit_curve_to_points(points: &[Coord2], max_error: f64) -> Vec<(i64, i64)> {
+pub fn fit_curve_to_points(points: &[Coord2], max_error: f64) -> BTreeMap<i64, i64> {
     let curves = Curve::fit_from_points(points, max_error).unwrap_or_default();
 
-    let mut points = Vec::new();
+    let mut points = BTreeMap::new();
 
     for curve in curves {
         collect_cubic_bezier_curve_points(
@@ -24,7 +25,7 @@ fn collect_cubic_bezier_curve_points(
     end: (f32, f32),
     control_a: (f32, f32),
     control_b: (f32, f32),
-    points: &mut Vec<(i64, i64)>,
+    points: &mut BTreeMap<i64, i64>,
 ) {
     // Bezier Curve function from: https://pomax.github.io/bezierinfo/#control
     let cubic_bezier_curve = |t: f32| {
@@ -68,7 +69,7 @@ fn collect_cubic_bezier_curve_points(
         let line_points = BresenhamLineIter::new(start, end);
 
         for (x, y) in line_points {
-            points.push((x as i64, y as i64));
+            points.insert(x as i64, y as i64);
         }
         t1 = t2;
     }

@@ -1416,7 +1416,6 @@ dependencies = [
  "flo_curves",
  "image",
  "imageproc",
- "indexmap",
  "jiff",
  "log",
  "mime",

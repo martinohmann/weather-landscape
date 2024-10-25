@@ -24,7 +24,6 @@ serde = { version = "1.0.210", features = ["derive"] }
 tokio = { version = "1.40.0", features = ["full"] }
 imageproc = "0.25.0"
 flo_curves = "0.7.3"
-indexmap = "2.6.0"
 
 [profile.release]
 codegen-units = 1
