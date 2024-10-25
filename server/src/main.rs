@@ -11,7 +11,7 @@ use actix_web::{
     web::{Data, Path, Query},
     App, HttpResponse, HttpServer, Result,
 };
-use config::AppConfig;
+use config::Config;
 use serde::Deserialize;
 use weather::Weather;
 
@@ -63,7 +63,7 @@ async fn image(
 async fn main() -> anyhow::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
-    let config = AppConfig::load().await?;
+    let config = Config::load().await?;
     let weather = Weather::new(config.latitude, config.longitude)?;
 
     log::info!("starting HTTP server at http://0.0.0.0:8080");

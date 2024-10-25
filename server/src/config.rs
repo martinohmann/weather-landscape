@@ -4,14 +4,14 @@ use log::debug;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct AppConfig {
+pub struct Config {
     pub latitude: f64,
     pub longitude: f64,
 }
 
-impl AppConfig {
+impl Config {
     /// Loads the application configuration config files and environment variables.
-    pub async fn load() -> Result<AppConfig> {
+    pub async fn load() -> Result<Config> {
         let config = ConfigBuilder::<AsyncState>::default()
             // Configuration from `config.toml`.
             .add_source(File::with_name("config").required(false))
