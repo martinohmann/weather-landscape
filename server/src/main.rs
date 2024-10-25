@@ -37,6 +37,7 @@ async fn healthz() -> &'static str {
 
 #[get("/image.{format}")]
 async fn image(
+    config: Data<Config>,
     weather: Data<Weather>,
     format: Path<ImageFormat>,
     query: Query<ImageRequest>,
@@ -47,7 +48,7 @@ async fn image(
         weather::cause_havoc(&mut data);
     }
 
-    let image = graphics::render(&data)?;
+    let image = graphics::render(&config, &data)?;
 
     let (content_type, body) = match format.into_inner() {
         ImageFormat::Bmp => (mime::IMAGE_BMP, image.bmp_bytes()?),

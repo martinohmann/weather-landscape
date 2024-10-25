@@ -7,6 +7,8 @@ use serde::Deserialize;
 pub struct Config {
     pub latitude: f64,
     pub longitude: f64,
+    #[serde(default)]
+    pub disable_night_mode: bool,
 }
 
 impl Config {

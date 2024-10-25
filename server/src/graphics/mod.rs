@@ -4,6 +4,7 @@ mod sprites;
 use self::curve::fit_curve_to_points;
 use self::sprites::{sprite, spriten};
 use crate::{
+    config::Config,
     error::{Error, Result},
     sun::Sun,
     weather::{Condition, DataPoint, WeatherData},
@@ -33,7 +34,7 @@ const BLACK: Rgba<u8> = Rgba([0, 0, 0, 255]);
 const WHITE: Rgba<u8> = Rgba([255, 255, 255, 255]);
 const TRANSPARENT: Rgba<u8> = Rgba([0, 0, 0, 0]);
 
-pub fn render(data: &WeatherData) -> Result<Canvas> {
+pub fn render(config: &Config, data: &WeatherData) -> Result<Canvas> {
     // We'll flip width and height here. The e-paper display works in portrait mode but we'd like
     // to draw the image in landscape mode, because it's more intiutive. The rendered image gets
     // rotated by 90 degrees before serving it to the esp32.
@@ -54,7 +55,9 @@ pub fn render(data: &WeatherData) -> Result<Canvas> {
         canvas.draw_pixel(x, y);
     }
 
-    if ctx.sun.is_before(ctx.instant, Dawn) || ctx.sun.is_after(ctx.instant, Dusk) {
+    let dark_outside = ctx.sun.is_before(ctx.instant, Dawn) || ctx.sun.is_after(ctx.instant, Dusk);
+
+    if !config.disable_night_mode && dark_outside {
         canvas.invert_pixels();
     }
 
