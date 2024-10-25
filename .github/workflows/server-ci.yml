@@ -2,6 +2,8 @@ name: Continuous Integration - server
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "server/**"
   pull_request:
