@@ -10,7 +10,7 @@ use crate::{
     app::Metrics,
     config::Config,
     sun::{Sun, SunPhase::*},
-    weather::{Condition, DataPoint, WeatherData},
+    weather::{DataPoint, WeatherData},
 };
 use epd_waveshare::epd2in9_v2::{HEIGHT, WIDTH};
 use imageproc::drawing::BresenhamLineIter;
@@ -289,27 +289,37 @@ impl Renderer {
         y: i64,
         width: i64,
     ) {
-        if data.precipitation_amount <= 0.0 {
+        let DataPoint {
+            condition,
+            precipitation_amount,
+            ..
+        } = *data;
+
+        if precipitation_amount <= 0.0 {
             // There's nothing that could fall from the sky.
             return;
         }
 
-        let (heaviness, factor) = match data.condition {
-            Condition::Snow => (5.0, 10.0),
-            Condition::Sleet => (5.0, 15.0),
-            _ => (5.0, 20.0),
+        let (heaviness, factor) = if condition.has_snow() {
+            (5.0, 10.0)
+        } else if condition.has_sleet() {
+            (5.0, 15.0)
+        } else {
+            (5.0, 20.0)
         };
 
-        let r = 1.0 - (data.precipitation_amount / heaviness) / factor;
+        let r = 1.0 - (precipitation_amount / heaviness) / factor;
 
         for x in x..x + width {
             if let Some(&y_max) = ctx.temperature_graph.get(&x) {
                 for y in (y..y_max).step_by(2) {
                     if rand::random::<f64>() > r {
-                        let snow = match data.condition {
-                            Condition::Snow => true,
-                            Condition::Sleet => rand::random(),
-                            _ => false,
+                        let snow = if condition.has_snow() {
+                            true
+                        } else if condition.has_sleet() {
+                            rand::random()
+                        } else {
+                            false
                         };
 
                         if snow {

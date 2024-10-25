@@ -202,37 +202,80 @@ pub enum Condition {
     Fog,
     PartlyCloudy,
     Rain,
+    RainAndThunder,
     Sleet,
+    SleetAndThunder,
     Snow,
+    SnowAndThunder,
     #[default]
     Unknown,
+}
+
+impl Condition {
+    pub fn has_sleet(&self) -> bool {
+        matches!(self, Condition::Sleet | Condition::SleetAndThunder)
+    }
+
+    pub fn has_snow(&self) -> bool {
+        matches!(self, Condition::Snow | Condition::SnowAndThunder)
+    }
 }
 
 impl FromStr for Condition {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let condition = match s {
-            "clearsky" | "clearsky_day" | "clearsky_night" => Condition::ClearSky,
-            "cloudy" | "cloudy_day" | "cloudy_night" => Condition::Cloudy,
-            "fair" | "fair_day" | "fair_night" => Condition::Fair,
-            "fog" | "fog_day" | "fog_night" => Condition::Fog,
-            "partlycloudy" | "partlycloudy_day" | "partlycloudy_night" => Condition::PartlyCloudy,
-            condition => {
-                // @TODO(mohmann): There are a lot more specific rain, sleet and snow condition,
-                // but we're not enumerating them explicitly for now.
-                //
-                // https://github.com/metno/weathericons/tree/main/weather
-                if condition.contains("rain") {
-                    Condition::Rain
-                } else if condition.contains("sleet") {
-                    Condition::Sleet
-                } else if condition.contains("snow") {
-                    Condition::Snow
-                } else {
-                    return Err(Error::new("unknown weather condition"));
-                }
+        // We don't distiguish between day and night conditions.
+        let normalized = s.trim_end_matches("_day").trim_end_matches("_night");
+
+        // @NOTE(mohmann): There are a lot more specific rain, sleet and snow condition,
+        // but we're not enumerating them explicitly for now but instead collapse them to a handful
+        // fewer variants.
+        //
+        // https://github.com/metno/weathericons/tree/main/weather
+        let condition = match normalized {
+            "clearsky" => Condition::ClearSky,
+            "cloudy" => Condition::Cloudy,
+            "fair" => Condition::Fair,
+            "fog" => Condition::Fog,
+            "partlycloudy" => Condition::PartlyCloudy,
+            // Rain
+            "heavyrain" | "lightrain" | "rain" => Condition::Rain,
+            // Rain showers
+            "heavyrainshowers" | "lightrainshowers" | "rainshowers" => Condition::Rain,
+            // Rain showers and thunder
+            "heavyrainshowersandthunder"
+            | "lightrainshowersandthunder"
+            | "rainshowersandthunder" => Condition::RainAndThunder,
+            // Rain and thunder
+            "heavyrainandthunder" | "lightrainandthunder" | "rainandthunder" => {
+                Condition::RainAndThunder
             }
+            // Sleet
+            "heavysleet" | "lightsleet" | "sleet" => Condition::Sleet,
+            // Sleet showers
+            "heavysleetshowers" | "lightsleetshowers" | "sleetshowers" => Condition::Sleet,
+            // Sleet showers and thunder
+            "heavysleetshowersandthunder"
+            | "lightsleetshowersandthunder"
+            | "sleetshowersandthunder" => Condition::SleetAndThunder,
+            // Sleet and thunder
+            "heavysleetandthunder" | "lightsleetandthunder" | "sleetandthunder" => {
+                Condition::SleetAndThunder
+            }
+            // Snow
+            "heavysnow" | "lightsnow" | "snow" => Condition::Snow,
+            // Snow showers
+            "heavysnowshowers" | "lightsnowshowers" | "snowshowers" => Condition::Snow,
+            // Snow showers and thunder
+            "heavysnowshowersandthunder"
+            | "lightsnowshowersandthunder"
+            | "snowshowersandthunder" => Condition::SnowAndThunder,
+            // Snow and thunder
+            "heavysnowandthunder" | "lightsnowandthunder" | "snowandthunder" => {
+                Condition::SnowAndThunder
+            }
+            _ => return Err(Error::new(format!("unknown weather condition: {}", s))),
         };
 
         Ok(condition)
@@ -245,9 +288,12 @@ pub fn cause_havoc(weather: &mut WeatherData) {
 
     let conditions = &[
         Condition::Fog,
-        Condition::Snow,
-        Condition::Sleet,
         Condition::Rain,
+        Condition::RainAndThunder,
+        Condition::Sleet,
+        Condition::SleetAndThunder,
+        Condition::Snow,
+        Condition::SnowAndThunder,
     ];
 
     let mut rng = rand::thread_rng();
