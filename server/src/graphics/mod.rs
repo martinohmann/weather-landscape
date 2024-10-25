@@ -55,10 +55,7 @@ pub fn render(data: &WeatherData) -> Result<Canvas> {
     }
 
     if ctx.sun.is_before(ctx.instant, Dawn) || ctx.sun.is_after(ctx.instant, Dusk) {
-        // Enable night mode.
-        for pixel in canvas.pixels_mut() {
-            pixel.invert();
-        }
+        canvas.invert_pixels();
     }
 
     Ok(canvas)
@@ -415,6 +412,12 @@ impl Canvas {
         if x >= 0 && x < self.width() as i64 && y >= 0 && y < self.height() as i64 {
             trace!("drawing pixel at ({x}, {y})");
             self.img.put_pixel(x as u32, y as u32, BLACK);
+        }
+    }
+
+    fn invert_pixels(&mut self) {
+        for pixel in self.pixels_mut() {
+            pixel.invert();
         }
     }
 
