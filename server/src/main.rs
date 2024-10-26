@@ -11,11 +11,16 @@ use actix_web::{
     web::{Data, Path, Query},
     App, HttpResponse, HttpServer, Result,
 };
+use actix_web_prom::PrometheusMetricsBuilder;
+use anyhow::anyhow;
 use config::Config;
+use prometheus::{opts, IntCounterVec};
 use serde::Deserialize;
 use weather::Weather;
 
-#[derive(Deserialize, Debug)]
+const METRICS_NAMESPACE: &str = "landscape_weather_server";
+
+#[derive(Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 enum ImageFormat {
     /// Bitmap
@@ -39,6 +44,7 @@ async fn healthz() -> &'static str {
 async fn image(
     config: Data<Config>,
     weather: Data<Weather>,
+    counter: Data<IntCounterVec>,
     format: Path<ImageFormat>,
     query: Query<ImageRequest>,
 ) -> Result<HttpResponse> {
@@ -50,13 +56,15 @@ async fn image(
 
     let image = graphics::render(&config, &data)?;
 
-    let (content_type, body) = match format.into_inner() {
+    let (mime_type, body) = match format.into_inner() {
         ImageFormat::Bmp => (mime::IMAGE_BMP, image.bmp_bytes()?),
         ImageFormat::Epd => (mime::APPLICATION_OCTET_STREAM, image.epd_bytes()?),
     };
 
+    counter.with_label_values(&[mime_type.essence_str()]).inc();
+
     Ok(HttpResponse::Ok()
-        .insert_header(ContentType(content_type))
+        .insert_header(ContentType(mime_type))
         .body(body))
 }
 
@@ -67,12 +75,25 @@ async fn main() -> anyhow::Result<()> {
     let config = Config::load().await?;
     let weather = Weather::new(config.latitude, config.longitude)?;
 
+    let prometheus = PrometheusMetricsBuilder::new(METRICS_NAMESPACE)
+        .endpoint("/metrics")
+        .build()
+        .map_err(|err| anyhow!("{err}"))?;
+
+    let counter_opts = opts!("image_requests_total", "Total number of image requests")
+        .namespace(METRICS_NAMESPACE);
+    let counter = IntCounterVec::new(counter_opts, &["mime_type"])?;
+
+    prometheus.registry.register(Box::new(counter.clone()))?;
+
     log::info!("starting HTTP server at http://0.0.0.0:8080");
 
     HttpServer::new(move || {
         App::new()
+            .app_data(Data::new(counter.clone()))
             .app_data(Data::new(config.clone()))
             .app_data(Data::new(weather.clone()))
+            .wrap(prometheus.clone())
             .service(image)
             .service(healthz)
             .wrap(middleware::Logger::default())
