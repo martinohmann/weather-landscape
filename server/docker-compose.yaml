@@ -1,0 +1,21 @@
+version: '3.3'
+
+services:
+  landscape-weather:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    environment:
+      - RUST_LOG=info
+      - LATITUDE=${LATITUDE}
+      - LONGITUDE=${LONGITUDE}
+    networks:
+      - weather-net
+    user: "nobody"
+
+networks:
+  weather-net:
+    driver: bridge
