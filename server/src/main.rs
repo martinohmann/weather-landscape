@@ -7,7 +7,7 @@ mod weather;
 use actix_web::{
     get,
     http::header::ContentType,
-    middleware,
+    middleware::Logger,
     web::{Data, Path, Query},
     App, HttpResponse, HttpServer, Result,
 };
@@ -96,7 +96,7 @@ async fn main() -> anyhow::Result<()> {
             .wrap(prometheus.clone())
             .service(image)
             .service(healthz)
-            .wrap(middleware::Logger::default())
+            .wrap(Logger::default().exclude("/healthz").exclude("/metrics"))
     })
     .bind(("0.0.0.0", 8080))?
     .workers(2)
