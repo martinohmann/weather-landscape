@@ -1,7 +1,5 @@
-mod curve;
 mod sprites;
 
-use self::curve::fit_curve_to_points;
 use self::sprites::{sprite, spriten};
 use crate::{
     config::Config,
@@ -17,8 +15,8 @@ use epd_waveshare::{
     epd2in9_v2::{HEIGHT, WIDTH},
     graphics::VarDisplay,
 };
-use flo_curves::Coord2;
 use image::{imageops, ImageFormat, Pixel, Rgba, RgbaImage};
+use imageproc::drawing::BresenhamLineIter;
 use jiff::{civil::time, tz::TimeZone, SignedDuration, Timestamp};
 use log::{debug, trace};
 use rand::{seq::SliceRandom, Rng};
@@ -371,7 +369,9 @@ impl Canvas {
             }
 
             if let Some(name) = trees.get(tree_index) {
-                let y = line_points.get(&offset).unwrap();
+                let Some(y) = line_points.get(&offset) else {
+                    continue;
+                };
                 let tree = spriten(name, wind_index);
                 let y_offset = (y - tree.height() as i64) + 1;
                 tree.overlay(&mut self.img, x_offset, y_offset);
@@ -559,27 +559,43 @@ impl<'a> RenderContext<'a> {
     }
 
     fn compute_line_points(&self) -> BTreeMap<i64, i64> {
-        // @FIXME(mohmann): now that we're at 24 forecasts data points again, it's probably enough
-        // to just connect the dots with lines instead of having all this curve fitting code
-        // around.
-        let forecasts = &self.data.forecasts;
-        let mut points: Vec<Coord2> = Vec::with_capacity(forecasts.len() + self.x_offset as usize);
+        let data = &self.data;
+        let mut line_points = BTreeMap::new();
 
-        let y = self.temperature_to_y(self.data.current.air_temperature);
+        let collect_line_points =
+            |line_points: &mut BTreeMap<i64, i64>, x1: i64, y1: i64, x2: i64, y2: i64| {
+                let (start, end) = ((x1 as f32, y1 as f32), (x2 as f32, y2 as f32));
 
-        // Points for the line below the house.
-        for x in 0..self.x_offset {
-            points.push(Coord2(x as f64, y as f64));
-        }
+                for (x, y) in BresenhamLineIter::new(start, end) {
+                    line_points.insert(x as i64, y as i64);
+                }
+            };
 
-        // Points for the temperatures.
-        for (i, forecast) in forecasts.iter().enumerate() {
+        let forecast_coords = |i: usize, data_point: &DataPoint| -> (i64, i64) {
             let x = self.forecast_x(i);
-            let y = self.temperature_to_y(forecast.air_temperature);
-            points.push(Coord2(x as f64, y as f64));
+            let y = self.temperature_to_y(data_point.air_temperature);
+            (x, y)
+        };
+
+        // Collect line points for the current temperature below the house.
+        let y = self.temperature_to_y(data.current.air_temperature);
+
+        collect_line_points(&mut line_points, 0, y, self.x_offset - 1, y);
+
+        // Collect line points between the current temperature and the first forecasts.
+        let (x1, y1) = (self.x_offset - 1, y);
+        let (x2, y2) = forecast_coords(0, &data.forecasts[0]);
+
+        collect_line_points(&mut line_points, x1, y1, x2, y2);
+
+        // Collect line points between forecasts.
+        for (i, window) in data.forecasts.windows(2).enumerate() {
+            let (x1, y1) = forecast_coords(i, &window[0]);
+            let (x2, y2) = forecast_coords(i + 1, &window[1]);
+
+            collect_line_points(&mut line_points, x1, y1, x2, y2);
         }
 
-        // The heavy lifting.
-        fit_curve_to_points(&points, 0.1)
+        line_points
     }
 }
