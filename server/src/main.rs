@@ -68,8 +68,7 @@ async fn image(
         .body(body))
 }
 
-#[actix_web::main]
-async fn main() -> anyhow::Result<()> {
+async fn run() -> anyhow::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     let config = Config::load().await?;
@@ -104,4 +103,12 @@ async fn main() -> anyhow::Result<()> {
     .await?;
 
     Ok(())
+}
+
+#[actix_web::main]
+async fn main() {
+    if let Err(err) = run().await {
+        log::error!("{err}");
+        std::process::exit(1);
+    }
 }
