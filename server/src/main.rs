@@ -1,22 +1,24 @@
+mod app;
 mod config;
 mod error;
 mod graphics;
 mod sun;
 mod weather;
 
+use crate::{
+    app::{AppState, Metrics},
+    config::Config,
+    error::Error,
+};
 use actix_web::{
     get,
     http::header::ContentType,
     middleware::Logger,
     web::{Data, Path, Query},
-    App, HttpResponse, HttpServer, Result,
+    App, HttpResponse, HttpServer,
 };
 use actix_web_prom::PrometheusMetricsBuilder;
-use anyhow::anyhow;
-use config::Config;
-use prometheus::{opts, IntCounterVec};
 use serde::Deserialize;
-use weather::Weather;
 
 #[derive(Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
@@ -40,26 +42,28 @@ async fn healthz() -> &'static str {
 
 #[get("/image.{format}")]
 async fn image(
-    config: Data<Config>,
-    weather: Data<Weather>,
-    counter: Data<IntCounterVec>,
+    state: Data<AppState>,
     format: Path<ImageFormat>,
     query: Query<ImageRequest>,
-) -> Result<HttpResponse> {
-    let mut data = weather.get().await?;
+) -> actix_web::Result<HttpResponse> {
+    let mut data = state.weather.get().await?;
 
     if query.cause_havoc {
         weather::cause_havoc(&mut data);
     }
 
-    let image = graphics::render(&config, &data)?;
+    let image = graphics::render(&state.config, &data)?;
 
     let (mime_type, body) = match format.into_inner() {
         ImageFormat::Bmp => (mime::IMAGE_BMP, image.bmp_bytes()?),
         ImageFormat::Epd => (mime::APPLICATION_OCTET_STREAM, image.epd_bytes()?),
     };
 
-    counter.with_label_values(&[mime_type.essence_str()]).inc();
+    state
+        .metrics
+        .image_counter
+        .with_label_values(&[mime_type.essence_str()])
+        .inc();
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType(mime_type))
@@ -67,26 +71,20 @@ async fn image(
 }
 
 async fn run() -> anyhow::Result<()> {
-    let config = Config::load().await?;
-    let weather = Weather::new(config.latitude, config.longitude)?;
+    let config = Config::load()?;
 
     let namespace = env!("CARGO_PKG_NAME").replace('-', "_");
     let prometheus = PrometheusMetricsBuilder::new(&namespace)
         .endpoint("/metrics")
         .build()
-        .map_err(|err| anyhow!("{err}"))?;
+        .map_err(Error::new)?;
 
-    let counter_opts =
-        opts!("image_requests_total", "Total number of image requests").namespace(&namespace);
-    let counter = IntCounterVec::new(counter_opts, &["mime_type"])?;
-
-    prometheus.registry.register(Box::new(counter.clone()))?;
+    let metrics = Metrics::new(&namespace, &prometheus.registry)?;
+    let state = AppState::new(config, metrics)?;
 
     HttpServer::new(move || {
         App::new()
-            .app_data(Data::new(counter.clone()))
-            .app_data(Data::new(config.clone()))
-            .app_data(Data::new(weather.clone()))
+            .app_data(Data::new(state.clone()))
             .wrap(prometheus.clone())
             .service(image)
             .service(healthz)

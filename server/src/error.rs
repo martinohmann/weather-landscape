@@ -13,6 +13,8 @@ pub enum Error {
     Jiff(#[from] jiff::Error),
     #[error("Config error: {0}")]
     Config(#[from] config::ConfigError),
+    #[error("Prometheus error: {0}")]
+    Prometheus(#[from] prometheus::Error),
     #[error(transparent)]
     Anyhow(#[from] anyhow::Error),
     #[error("{0}")]

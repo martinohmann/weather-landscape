@@ -1,8 +1,9 @@
 use crate::error::Result;
-use config::{builder::AsyncState, ConfigBuilder, Environment, File};
+use config::{Environment, File};
 use serde::Deserialize;
 use tracing::debug;
 
+/// Application configuration sourced from env and/or config file.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
     pub latitude: f64,
@@ -13,14 +14,13 @@ pub struct Config {
 
 impl Config {
     /// Loads the application configuration config files and environment variables.
-    pub async fn load() -> Result<Config> {
-        let config = ConfigBuilder::<AsyncState>::default()
+    pub fn load() -> Result<Config> {
+        let config = config::Config::builder()
             // Configuration from `config.toml`.
             .add_source(File::with_name("config").required(false))
             // Config from environment variables.
             .add_source(Environment::default().separator("_"))
-            .build()
-            .await?
+            .build()?
             .try_deserialize()?;
 
         debug!(?config, "configuration loaded");
