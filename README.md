@@ -25,6 +25,18 @@ couldn't make it work on my hardware. So I was thinking. I wanted to get my
 hands dirty with esp32, but couldn't come up with a nice project to make use of
 it. So this was a perfect opportunity!
 
+## Additional features over the original
+
+Apart from the features mentioned in the README of
+[`weather_landscape`][weather_landscape], this implementation also includes:
+
+- **Fog**: On a foggy day you will see wavelike lines below the clouds. The
+  more lines there are, the heavier the fog.
+- **Sleet**: Apart from rain and snow, sleet is also shown as a mixture of rain
+  drops and snow flakes.
+- **Night mode**: At night time the colors are inverted (white scenery on black
+  background).
+
 ## Setup
 
 ### `server` Setup
