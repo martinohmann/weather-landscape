@@ -69,8 +69,6 @@ async fn image(
 }
 
 async fn run() -> anyhow::Result<()> {
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-
     let config = Config::load().await?;
     let weather = Weather::new(config.latitude, config.longitude)?;
 
@@ -84,8 +82,6 @@ async fn run() -> anyhow::Result<()> {
     let counter = IntCounterVec::new(counter_opts, &["mime_type"])?;
 
     prometheus.registry.register(Box::new(counter.clone()))?;
-
-    log::info!("starting HTTP server at http://0.0.0.0:8080");
 
     HttpServer::new(move || {
         App::new()
@@ -107,8 +103,10 @@ async fn run() -> anyhow::Result<()> {
 
 #[actix_web::main]
 async fn main() {
+    tracing_subscriber::fmt::init();
+
     if let Err(err) = run().await {
-        log::error!("{err}");
+        tracing::error!("{err}");
         std::process::exit(1);
     }
 }

@@ -1,6 +1,5 @@
 use crate::error::{Error, Result};
 use jiff::Timestamp;
-use log::info;
 use monsoon::{
     body::{Body, TimeSeries},
     Monsoon, Params, Response,
@@ -13,6 +12,7 @@ use tower::{
     limit::{ConcurrencyLimit, RateLimit},
     Service, ServiceBuilder, ServiceExt,
 };
+use tracing::info;
 
 // Met.no requires to identify oneself via user-agent header. This is best practice anyways.
 const USER_AGENT: &str = concat!(

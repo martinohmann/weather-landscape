@@ -1,10 +1,10 @@
 use super::{BLACK, TRANSPARENT, WHITE};
 use crate::error::Result;
 use image::{imageops, RgbaImage};
-use log::debug;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::OnceLock;
+use tracing::trace;
 
 macro_rules! load_sprite {
     ($map:ident, $name:literal) => {
@@ -113,7 +113,7 @@ impl Sprite {
     }
 
     pub(super) fn overlay(&self, image: &mut RgbaImage, x: i64, y: i64) {
-        debug!("placing sprite {} at ({x}, {y})", self.name);
+        trace!("placing sprite {} at ({x}, {y})", self.name);
         imageops::overlay(image, &self.img, x, y);
     }
 }

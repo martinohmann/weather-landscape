@@ -1,7 +1,7 @@
 use crate::error::Result;
 use config::{builder::AsyncState, ConfigBuilder, Environment, File};
-use log::debug;
 use serde::Deserialize;
+use tracing::debug;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
@@ -23,7 +23,7 @@ impl Config {
             .await?
             .try_deserialize()?;
 
-        debug!("loaded configuration: {:?}", config);
+        debug!(?config, "configuration loaded");
 
         Ok(config)
     }

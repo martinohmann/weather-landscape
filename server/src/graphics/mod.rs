@@ -18,7 +18,6 @@ use epd_waveshare::{
 use image::{imageops, ImageFormat, Pixel, Rgba, RgbaImage};
 use imageproc::drawing::BresenhamLineIter;
 use jiff::{civil::time, tz::TimeZone, SignedDuration, Timestamp};
-use log::{debug, trace};
 use rand::{seq::SliceRandom, Rng};
 use std::{
     collections::BTreeMap,
@@ -26,6 +25,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 use sun::SunPhase::*;
+use tracing::{debug, trace};
 
 const SECONDS_DAY: f64 = 24.0 * 60.0 * 60.0;
 const BLACK: Rgba<u8> = Rgba([0, 0, 0, 255]);
@@ -39,7 +39,7 @@ pub fn render(config: &Config, data: &WeatherData) -> Result<Canvas> {
     let mut canvas = Canvas::new(HEIGHT, WIDTH);
     let ctx = RenderContext::create(data, canvas.width(), canvas.height())?;
 
-    debug!("rendering with context: {ctx:?}");
+    debug!(?ctx, "rendering image");
 
     let line_points = ctx.compute_line_points();
 
