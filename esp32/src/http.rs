@@ -9,9 +9,11 @@ use esp_idf_svc::{
     sys::esp_crt_bundle_attach,
 };
 use log::info;
+use std::time::Duration;
 
 pub fn fetch_image_data(url: &str) -> Result<Vec<u8>> {
     let connection = EspHttpConnection::new(&Configuration {
+        timeout: Some(Duration::from_secs(5)),
         use_global_ca_store: true,
         crt_bundle_attach: Some(esp_crt_bundle_attach),
         ..Default::default()
