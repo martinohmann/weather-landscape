@@ -3,6 +3,7 @@ use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
     hal::modem::Modem,
     hal::peripheral::Peripheral,
+    nvs::EspDefaultNvsPartition,
     wifi::{AuthMethod, BlockingWifi, ClientConfiguration, Configuration, EspWifi},
 };
 use log::info;
@@ -12,6 +13,7 @@ pub fn connect(
     password: &str,
     modem: impl Peripheral<P = Modem> + 'static,
     sysloop: EspSystemEventLoop,
+    nvs: EspDefaultNvsPartition,
 ) -> Result<BlockingWifi<EspWifi<'static>>> {
     let mut auth_method = AuthMethod::WPA2Personal;
 
@@ -24,7 +26,7 @@ pub fn connect(
         info!("WiFi password is empty");
     }
 
-    let esp_wifi = EspWifi::new(modem, sysloop.clone(), None)?;
+    let esp_wifi = EspWifi::new(modem, sysloop.clone(), Some(nvs))?;
     let mut wifi = BlockingWifi::wrap(esp_wifi, sysloop)?;
 
     let config = Configuration::Client(ClientConfiguration {

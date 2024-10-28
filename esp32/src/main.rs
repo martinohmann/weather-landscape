@@ -8,11 +8,13 @@ use epd_waveshare::{
     epd2in9_v2::{Display2in9, Epd2in9, HEIGHT, WIDTH},
     prelude::{Color, WaveshareDisplay},
 };
-use esp_idf_hal::delay::Ets;
-use esp_idf_hal::gpio::{AnyIOPin, Gpio2, PinDriver};
-use esp_idf_hal::prelude::*;
-use esp_idf_hal::spi::{config::Config as SpiConfig, SpiDeviceDriver, SpiDriverConfig};
-use esp_idf_svc::eventloop::EspSystemEventLoop;
+use esp_idf_hal::{
+    delay::Ets,
+    gpio::{AnyIOPin, Gpio2, PinDriver},
+    prelude::*,
+    spi::{config::Config as SpiConfig, SpiDeviceDriver, SpiDriverConfig},
+};
+use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition};
 use log::{error, info};
 use std::{thread, time::Duration};
 
@@ -36,20 +38,26 @@ fn main() -> Result<()> {
 
     let peripherals = Peripherals::take()?;
     let sysloop = EspSystemEventLoop::take()?;
+    let nvs = EspDefaultNvsPartition::take()?;
 
-    if let Err(err) = run(peripherals, sysloop) {
+    if let Err(err) = run(peripherals, sysloop, nvs) {
         error!("{err}");
     }
 
     enter_deep_sleep(Duration::from_secs(CONFIG.deep_sleep_seconds));
 }
 
-fn run(peripherals: Peripherals, sysloop: EspSystemEventLoop) -> Result<()> {
+fn run(
+    peripherals: Peripherals,
+    sysloop: EspSystemEventLoop,
+    nvs: EspDefaultNvsPartition,
+) -> Result<()> {
     let wifi = wifi::connect(
         CONFIG.wifi_ssid,
         CONFIG.wifi_psk,
         peripherals.modem,
         sysloop,
+        nvs,
     )
     .context("Could not connect to WiFi network")?;
 
