@@ -12,7 +12,7 @@ macro_rules! load_sprite {
             $name,
             Sprite::from_slice(
                 $name,
-                include_bytes!(concat!("../../data/sprites/", $name, ".png")),
+                include_bytes!(concat!("data/sprites/", $name, ".png")),
             )
             .unwrap(),
         );
