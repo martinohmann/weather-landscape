@@ -1,7 +1,7 @@
 # Make a copy of this file to `cfg.toml` and customize to your needs.
 #
 # The values in this file will get baked into the esp32 at compile time.
-[esp32-landscape-weather]
+[weather-landscape]
 # The URL to the image that is downloaded and displayed periodically.
 data_url = "http://192.168.123.456:8080/image.epd"
 

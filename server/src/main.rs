@@ -18,8 +18,6 @@ use prometheus::{opts, IntCounterVec};
 use serde::Deserialize;
 use weather::Weather;
 
-const METRICS_NAMESPACE: &str = "landscape_weather_server";
-
 #[derive(Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 enum ImageFormat {
@@ -72,13 +70,14 @@ async fn run() -> anyhow::Result<()> {
     let config = Config::load().await?;
     let weather = Weather::new(config.latitude, config.longitude)?;
 
-    let prometheus = PrometheusMetricsBuilder::new(METRICS_NAMESPACE)
+    let namespace = env!("CARGO_PKG_NAME").replace('-', "_");
+    let prometheus = PrometheusMetricsBuilder::new(&namespace)
         .endpoint("/metrics")
         .build()
         .map_err(|err| anyhow!("{err}"))?;
 
-    let counter_opts = opts!("image_requests_total", "Total number of image requests")
-        .namespace(METRICS_NAMESPACE);
+    let counter_opts =
+        opts!("image_requests_total", "Total number of image requests").namespace(&namespace);
     let counter = IntCounterVec::new(counter_opts, &["mime_type"])?;
 
     prometheus.registry.register(Box::new(counter.clone()))?;

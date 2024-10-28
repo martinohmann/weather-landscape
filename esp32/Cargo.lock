@@ -694,22 +694,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "esp32-landscape-weather"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "embedded-graphics",
- "embedded-svc",
- "embuild",
- "epd-waveshare",
- "esp-idf-hal",
- "esp-idf-svc",
- "esp-idf-sys",
- "log",
- "toml-cfg",
-]
-
-[[package]]
 name = "fastrand"
 version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1761,6 +1745,22 @@ name = "wasm-bindgen-shared"
 version = "0.2.93"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c62a0a307cb4a311d3a07867860911ca130c3494e8c2719593806c08bc5d0484"
+
+[[package]]
+name = "weather-landscape"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "embedded-graphics",
+ "embedded-svc",
+ "embuild",
+ "epd-waveshare",
+ "esp-idf-hal",
+ "esp-idf-svc",
+ "esp-idf-sys",
+ "log",
+ "toml-cfg",
+]
 
 [[package]]
 name = "webpki-roots"

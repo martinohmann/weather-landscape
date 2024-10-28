@@ -21,7 +21,7 @@ RUN cargo build --release
 ## Package
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install --yes ca-certificates && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/target/release/landscape-weather-server /usr/local/bin/landscape-weather-server
+COPY --from=builder /app/target/release/weather-landscape-server /usr/local/bin/weather-landscape-server
 USER nobody
 EXPOSE 8080
-ENTRYPOINT ["/usr/local/bin/landscape-weather-server"]
+ENTRYPOINT ["/usr/local/bin/weather-landscape-server"]

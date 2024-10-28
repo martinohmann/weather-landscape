@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   release-images:
-    uses: martinohmann/esp32-landscape-weather/.github/workflows/build-image.yaml@main
+    uses: martinohmann/weather-landscape/.github/workflows/build-image.yaml@main
     secrets: inherit
     with:
       push: true

@@ -1,7 +1,8 @@
 [package]
-name = "landscape-weather-server"
+name = "weather-landscape-server"
 version = "0.1.0"
-repository = "https://github.com/martinohmann/esp32-landscape-weather"
+authors = ["martinohmann <martinohmann@gmail.com>"]
+repository = "https://github.com/martinohmann/weather-landscape"
 edition = "2021"
 
 [dependencies]

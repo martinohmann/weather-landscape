@@ -1,5 +1,4 @@
-
-# esp32-landscape-weather
+# weather-landscape
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -91,8 +90,8 @@ cargo espflash --release --monitor
 ## License
 
 The source code inside this repository is licensed under either of
-[Apache License, Version 2.0](https://github.com/martinohmann/esp32-landscape-weather/blob/main/LICENSE-APACHE)
-or [MIT license](https://github.com/martinohmann/esp32-landscape-weather/blob/main/LICENSE-MIT)
+[Apache License, Version 2.0](https://github.com/martinohmann/weather-landscape/blob/main/LICENSE-APACHE)
+or [MIT license](https://github.com/martinohmann/weather-landscape/blob/main/LICENSE-MIT)
 at your option.
 
 [weather_landscape]: https://github.com/lds133/weather_landscape/
