@@ -59,11 +59,7 @@ async fn image(
         ImageFormat::Epd => (mime::APPLICATION_OCTET_STREAM, image.epd_bytes()?),
     };
 
-    state
-        .metrics
-        .image_counter
-        .with_label_values(&[mime_type.essence_str()])
-        .inc();
+    state.metrics.image_counter(mime_type.essence_str()).inc();
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType(mime_type))

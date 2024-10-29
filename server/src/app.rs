@@ -1,5 +1,8 @@
 use crate::{config::Config, error::Result, weather::Weather};
-use prometheus::{opts, IntCounterVec, Registry};
+use prometheus::{
+    core::{AtomicU64, GenericCounter},
+    opts, IntCounterVec, Registry,
+};
 
 /// Holds the application state.
 #[derive(Clone)]
@@ -25,8 +28,7 @@ impl AppState {
 /// Container type for all custom application metrics.
 #[derive(Clone, Debug)]
 pub struct Metrics {
-    /// Counter for the total number of image requests.
-    pub image_counter: IntCounterVec,
+    image_counter: IntCounterVec,
 }
 
 impl Metrics {
@@ -40,5 +42,10 @@ impl Metrics {
         registry.register(Box::new(image_counter.clone()))?;
 
         Ok(Metrics { image_counter })
+    }
+
+    /// Returns the image counter for given mime type.
+    pub fn image_counter(&self, mime_type: &str) -> GenericCounter<AtomicU64> {
+        self.image_counter.with_label_values(&[mime_type])
     }
 }
