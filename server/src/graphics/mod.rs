@@ -278,14 +278,17 @@ impl Canvas {
             if let Some(&y_max) = line_points.get(&x) {
                 for y in (y..y_max).step_by(2) {
                     if rand::random::<f64>() > r {
-                        self.draw_pixel(x, y);
+                        let snow = match data.condition {
+                            Condition::Snow => true,
+                            Condition::Sleet => rand::random(),
+                            _ => false,
+                        };
 
-                        if let Condition::Snow = data.condition {
+                        if snow {
+                            self.draw_pixel(x, y);
+                        } else {
+                            self.draw_pixel(x, y);
                             self.draw_pixel(x, y - 1);
-                        } else if let Condition::Sleet = data.condition {
-                            if rand::random() {
-                                self.draw_pixel(x, y - 1);
-                            }
                         }
                     }
                 }
