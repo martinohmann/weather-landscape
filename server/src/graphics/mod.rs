@@ -2,6 +2,7 @@ mod sprites;
 
 use self::sprites::{sprite, spriten};
 use crate::{
+    app::Metrics,
     config::Config,
     error::{Error, Result},
     sun::Sun,
@@ -32,49 +33,50 @@ const BLACK: Rgba<u8> = Rgba([0, 0, 0, 255]);
 const WHITE: Rgba<u8> = Rgba([255, 255, 255, 255]);
 const TRANSPARENT: Rgba<u8> = Rgba([0, 0, 0, 0]);
 
-pub fn render(config: &Config, data: &WeatherData) -> Result<Canvas> {
-    // We'll flip width and height here. The e-paper display works in portrait mode but we'd like
-    // to draw the image in landscape mode, because it's more intiutive. The rendered image gets
-    // rotated by 90 degrees before serving it to the esp32.
-    let mut canvas = Canvas::new(HEIGHT, WIDTH);
-    let ctx = RenderContext::create(data, canvas.width(), canvas.height())?;
-
-    debug!(?ctx, "rendering image");
-
-    let line_points = ctx.compute_line_points();
-
-    canvas.draw_celestial_bodies(&ctx);
-    canvas.draw_current_weather(&ctx, &line_points);
-    canvas.draw_forecasts(&ctx, &line_points);
-    canvas.draw_midday_and_midnight(&ctx, &line_points);
-
-    // Draw the temperature graph.
-    for (x, y) in line_points {
-        canvas.draw_pixel(x, y);
-    }
-
-    let dark_outside = ctx.sun.is_before(ctx.instant, Dawn) || ctx.sun.is_after(ctx.instant, Dusk);
-
-    if !config.disable_night_mode && dark_outside {
-        canvas.invert_pixels();
-    }
-
-    Ok(canvas)
+/// Renders landscape images from weather data.
+#[derive(Clone)]
+pub struct Renderer {
+    night_mode: bool,
+    metrics: Metrics,
 }
 
-#[derive(Debug)]
-pub struct Canvas {
-    img: RgbaImage,
-}
-
-impl Canvas {
-    fn new(width: u32, height: u32) -> Self {
-        Canvas {
-            img: RgbaImage::from_fn(width, height, |_, _| WHITE),
+impl Renderer {
+    /// Creates a new `Renderer` from config and metrics.
+    pub fn new(config: &Config, metrics: Metrics) -> Self {
+        Renderer {
+            night_mode: !config.disable_night_mode,
+            metrics,
         }
     }
 
-    fn draw_house(&mut self, ctx: &RenderContext) {
+    /// Renders the weather data into a landscape image.
+    pub fn render(&self, data: &WeatherData) -> Result<Canvas> {
+        let mut ctx = RenderContext::new(data)?;
+        let line_points = ctx.compute_line_points(data);
+
+        debug!(?data, "rendering image for weather data");
+
+        self.draw_celestial_bodies(&mut ctx);
+        self.draw_current_weather(&mut ctx, &data.current, &line_points);
+        self.draw_forecasts(&mut ctx, data, &line_points);
+        self.draw_midday_and_midnight(&mut ctx, &line_points);
+
+        // Draw the temperature graph.
+        for (x, y) in line_points {
+            ctx.canvas.draw_pixel(x, y);
+        }
+
+        let dark_outside =
+            ctx.sun.is_before(ctx.instant, Dawn) || ctx.sun.is_after(ctx.instant, Dusk);
+
+        if self.night_mode && dark_outside {
+            ctx.canvas.invert_pixels();
+        }
+
+        Ok(ctx.canvas)
+    }
+
+    fn draw_house(&self, ctx: &mut RenderContext, weather: &DataPoint) {
         let house = if ctx.sun.is_between(ctx.instant, Sunset, Night)
             || ctx.sun.is_between(ctx.instant, NightEnd, Sunrise)
         {
@@ -85,33 +87,36 @@ impl Canvas {
             sprite("house_00")
         };
 
-        let y = ctx.temperature_to_y(ctx.data.current.air_temperature) - house.height() as i64;
+        let y = ctx.temperature_to_y(weather.air_temperature) - house.height() as i64;
 
-        house.overlay(&mut self.img, 0, y);
+        house.overlay(&mut ctx.canvas, 0, y);
+        self.metrics.object_counter(house.name()).inc();
     }
 
-    fn draw_celestial_bodies(&mut self, ctx: &RenderContext) {
+    fn draw_celestial_bodies(&self, ctx: &mut RenderContext) {
         let sun = sprite("sun_00");
         let next_sunrise = ctx.sun.next_phase(ctx.instant, Sunrise);
         let sun_x = ctx.timestamp_to_x(next_sunrise) - (sun.width() / 2) as i64;
 
-        sun.overlay(&mut self.img, sun_x, 0);
+        sun.overlay(&mut ctx.canvas, sun_x, 0);
+        self.metrics.object_counter(sun.name()).inc();
 
         let moon = sprite("moon_00");
         let next_sunset = ctx.sun.next_phase(ctx.instant, Sunset);
         let moon_x = ctx.timestamp_to_x(next_sunset) - (moon.width() / 4) as i64;
 
-        moon.overlay(&mut self.img, moon_x, 0);
+        moon.overlay(&mut ctx.canvas, moon_x, 0);
+        self.metrics.object_counter(moon.name()).inc();
     }
 
-    fn draw_midday_and_midnight(&mut self, ctx: &RenderContext, line_points: &BTreeMap<i64, i64>) {
+    fn draw_midday_and_midnight(&self, ctx: &mut RenderContext, line_points: &BTreeMap<i64, i64>) {
         self.draw_flower(ctx, "flower_00", 0, line_points);
         self.draw_flower(ctx, "flower_01", 12, line_points);
     }
 
     fn draw_flower(
-        &mut self,
-        ctx: &RenderContext,
+        &self,
+        ctx: &mut RenderContext,
         name: &str,
         hour: i8,
         line_points: &BTreeMap<i64, i64>,
@@ -132,41 +137,76 @@ impl Canvas {
         if let Some(&y) = line_points.get(&x) {
             let sprite = sprite(name);
             let y = y - sprite.height() as i64;
-            sprite.overlay(&mut self.img, x, y);
+            sprite.overlay(&mut ctx.canvas, x, y);
+            self.metrics.object_counter(sprite.name()).inc();
         }
     }
 
-    fn draw_current_weather(&mut self, ctx: &RenderContext, line_points: &BTreeMap<i64, i64>) {
-        let weather = &ctx.data.current;
+    fn draw_current_weather(
+        &self,
+        ctx: &mut RenderContext,
+        weather: &DataPoint,
+        line_points: &BTreeMap<i64, i64>,
+    ) {
         let cloud_height = sprite("cloud_02").height() as i64;
 
-        self.draw_house(ctx);
-        self.draw_clouds(weather.cloud_area_fraction, 0, 5, ctx.x_offset);
-        self.draw_fog(weather, 0, cloud_height + 10, ctx.x_offset, line_points);
-        self.draw_precipitation(weather, 0, cloud_height + 5, ctx.x_offset, line_points);
+        self.draw_house(ctx, weather);
+        self.draw_clouds(ctx, weather.cloud_area_fraction, 0, 5, ctx.x_offset);
+        self.draw_fog(
+            ctx,
+            weather,
+            0,
+            cloud_height + 10,
+            ctx.x_offset,
+            line_points,
+        );
+        self.draw_precipitation(ctx, weather, 0, cloud_height + 5, ctx.x_offset, line_points);
         self.draw_temperature(ctx, weather.air_temperature, ctx.x_offset / 2);
     }
 
-    fn draw_forecasts(&mut self, ctx: &RenderContext, line_points: &BTreeMap<i64, i64>) {
-        let forecasts = &ctx.data.forecasts;
+    fn draw_forecasts(
+        &self,
+        ctx: &mut RenderContext,
+        data: &WeatherData,
+        line_points: &BTreeMap<i64, i64>,
+    ) {
+        let forecasts = &data.forecasts;
         let cloud_height = sprite("cloud_02").height() as i64;
 
         // Only draw a forecast sample for every 4 hours. It'll get too crowded otherwise.
         for (i, forecast) in forecasts.iter().enumerate().step_by(4) {
             let x = ctx.forecast_x(i);
-            self.draw_clouds(forecast.cloud_area_fraction, x, 5, ctx.x_step * 4);
-            self.draw_trees(forecast, x, line_points);
-            self.draw_fog(forecast, x, cloud_height + 10, ctx.x_step * 4, line_points);
-            self.draw_precipitation(forecast, x, cloud_height + 5, ctx.x_step * 4, line_points);
+            self.draw_clouds(ctx, forecast.cloud_area_fraction, x, 5, ctx.x_step * 4);
+            self.draw_trees(ctx, forecast, x, line_points);
+            self.draw_fog(
+                ctx,
+                forecast,
+                x,
+                cloud_height + 10,
+                ctx.x_step * 4,
+                line_points,
+            );
+            self.draw_precipitation(
+                ctx,
+                forecast,
+                x,
+                cloud_height + 5,
+                ctx.x_step * 4,
+                line_points,
+            );
         }
 
-        self.draw_temperature_extrema(ctx, ctx.min_temperature);
-        self.draw_temperature_extrema(ctx, ctx.max_temperature);
+        self.draw_temperature_extrema(ctx, data, ctx.min_temperature);
+        self.draw_temperature_extrema(ctx, data, ctx.max_temperature);
     }
 
-    fn draw_temperature_extrema(&mut self, ctx: &RenderContext, temperature: f64) {
-        if let Some((i, data_point)) = ctx
-            .data
+    fn draw_temperature_extrema(
+        &self,
+        ctx: &mut RenderContext,
+        data: &WeatherData,
+        temperature: f64,
+    ) {
+        if let Some((i, data_point)) = data
             .forecasts
             .iter()
             .enumerate()
@@ -177,12 +217,12 @@ impl Canvas {
         }
     }
 
-    fn draw_temperature(&mut self, ctx: &RenderContext, temperature: f64, x: i64) {
+    fn draw_temperature(&self, ctx: &mut RenderContext, temperature: f64, x: i64) {
         let y = ctx.temperature_to_y(temperature);
-        self.draw_digits(x, y + 5, temperature.round() as i64);
+        self.draw_digits(ctx, x, y + 5, temperature.round() as i64);
     }
 
-    fn draw_clouds(&mut self, percentage: f64, x: i64, y: i64, width: i64) {
+    fn draw_clouds(&self, ctx: &mut RenderContext, percentage: f64, x: i64, y: i64, width: i64) {
         let cloudset: &[usize] = match percentage {
             2.0..5.0 => &[2],
             5.0..10.0 => &[3, 2],
@@ -202,12 +242,15 @@ impl Canvas {
 
         for &n in cloudset {
             let offset = rng.gen_range(0..width);
-            spriten("cloud", n).overlay(&mut self.img, x + offset, y);
+            let cloud = spriten("cloud", n);
+            cloud.overlay(&mut ctx.canvas, x + offset, y);
+            self.metrics.object_counter(cloud.name()).inc();
         }
     }
 
     fn draw_fog(
-        &mut self,
+        &self,
+        ctx: &mut RenderContext,
         data: &DataPoint,
         x: i64,
         y: i64,
@@ -245,8 +288,10 @@ impl Canvas {
                     let x = x_pos + i;
                     let y = y_pos + (i as f64 + 2.0).sin().round() as i64;
 
-                    self.draw_pixel(x, y);
+                    ctx.canvas.draw_pixel(x, y);
                 }
+
+                self.metrics.object_counter("fog").inc();
 
                 x_pos += fog_width;
             }
@@ -254,7 +299,8 @@ impl Canvas {
     }
 
     fn draw_precipitation(
-        &mut self,
+        &self,
+        ctx: &mut RenderContext,
         data: &DataPoint,
         x: i64,
         y: i64,
@@ -285,10 +331,12 @@ impl Canvas {
                         };
 
                         if snow {
-                            self.draw_pixel(x, y);
+                            ctx.canvas.draw_pixel(x, y);
+                            self.metrics.object_counter("snowflake").inc();
                         } else {
-                            self.draw_pixel(x, y);
-                            self.draw_pixel(x, y - 1);
+                            ctx.canvas.draw_pixel(x, y);
+                            ctx.canvas.draw_pixel(x, y - 1);
+                            self.metrics.object_counter("raindrop").inc();
                         }
                     }
                 }
@@ -296,7 +344,13 @@ impl Canvas {
         }
     }
 
-    fn draw_trees(&mut self, data: &DataPoint, x: i64, line_points: &BTreeMap<i64, i64>) {
+    fn draw_trees(
+        &self,
+        ctx: &mut RenderContext,
+        data: &DataPoint,
+        x: i64,
+        line_points: &BTreeMap<i64, i64>,
+    ) {
         // @FIXME(mohmann): Simplify this complicated method.
 
         fn direction_distance(a: f64, b: f64) -> f64 {
@@ -377,14 +431,15 @@ impl Canvas {
                 };
                 let tree = spriten(name, wind_index);
                 let y_offset = (y - tree.height() as i64) + 1;
-                tree.overlay(&mut self.img, x_offset, y_offset);
+                tree.overlay(&mut ctx.canvas, x_offset, y_offset);
+                self.metrics.object_counter(tree.name()).inc();
             }
 
             x_offset += 9;
         }
     }
 
-    fn draw_digits(&mut self, x: i64, y: i64, value: i64) {
+    fn draw_digits(&self, ctx: &mut RenderContext, x: i64, y: i64, value: i64) {
         let sign = if value >= 0 {
             sprite("digit_10") // plus
         } else {
@@ -403,15 +458,33 @@ impl Canvas {
         // Center the digits, excluding the sign because it looks better.
         let mut offset = -(digits * (digit_width + 1) / 2) - digit_width;
 
-        sign.overlay(&mut self.img, x + offset, y);
+        sign.overlay(&mut ctx.canvas, x + offset, y);
+        self.metrics.object_counter(sign.name()).inc();
         offset += digit_width + 1;
 
         if d1 > 0 {
-            spriten("digit", d1 as _).overlay(&mut self.img, x + offset, y);
+            let digit = spriten("digit", d1 as _);
+            digit.overlay(&mut ctx.canvas, x + offset, y);
+            self.metrics.object_counter(digit.name()).inc();
             offset += digit_width + 1;
         }
 
-        spriten("digit", d2 as _).overlay(&mut self.img, x + offset, y);
+        let digit = spriten("digit", d2 as _);
+        digit.overlay(&mut ctx.canvas, x + offset, y);
+        self.metrics.object_counter(digit.name()).inc();
+    }
+}
+
+#[derive(Debug)]
+pub struct Canvas {
+    img: RgbaImage,
+}
+
+impl Canvas {
+    fn new(width: u32, height: u32) -> Self {
+        Canvas {
+            img: RgbaImage::from_fn(width, height, |_, _| WHITE),
+        }
     }
 
     fn draw_pixel(&mut self, x: i64, y: i64) {
@@ -471,10 +544,9 @@ impl DerefMut for Canvas {
 }
 
 #[derive(Debug)]
-struct RenderContext<'a> {
-    data: &'a WeatherData,
+struct RenderContext {
+    canvas: Canvas,
     sun: Sun,
-    width: u32,
     // X-offset for the weather graph.
     x_offset: i64,
     // X-step for a single forecast.
@@ -491,8 +563,13 @@ struct RenderContext<'a> {
     instant: Timestamp,
 }
 
-impl<'a> RenderContext<'a> {
-    fn create(data: &'a WeatherData, width: u32, height: u32) -> Result<Self> {
+impl RenderContext {
+    fn new(data: &WeatherData) -> Result<Self> {
+        // We'll flip width and height here. The e-paper display works in portrait mode but we'd like
+        // to draw the image in landscape mode, because it's more intiutive. The rendered image gets
+        // rotated by 90 degrees before serving it to the esp32.
+        let canvas = Canvas::new(HEIGHT, WIDTH);
+        let (width, height) = canvas.dimensions();
         let (latitude, longitude) = (data.coords.latitude, data.coords.longitude);
         let x_offset = sprite("house_00").width() as i64;
         let x_step = (width as i64 - x_offset) / (data.forecasts.len() as i64 - 1);
@@ -533,9 +610,8 @@ impl<'a> RenderContext<'a> {
         };
 
         Ok(RenderContext {
-            data,
+            canvas,
             sun,
-            width,
             x_step,
             x_offset,
             y_offset,
@@ -548,7 +624,7 @@ impl<'a> RenderContext<'a> {
 
     fn timestamp_to_x(&self, timestamp: Timestamp) -> i64 {
         let delta = timestamp.duration_since(self.instant).as_secs_f64();
-        let width = self.width as f64 - self.x_offset as f64;
+        let width = self.canvas.width() as f64 - self.x_offset as f64;
         ((delta / SECONDS_DAY) * width).round() as i64 + self.x_offset
     }
 
@@ -561,8 +637,7 @@ impl<'a> RenderContext<'a> {
         self.x_offset + (self.x_step * (i as i64 + 1))
     }
 
-    fn compute_line_points(&self) -> BTreeMap<i64, i64> {
-        let data = &self.data;
+    fn compute_line_points(&self, data: &WeatherData) -> BTreeMap<i64, i64> {
         let mut line_points = BTreeMap::new();
 
         let collect_line_points =
