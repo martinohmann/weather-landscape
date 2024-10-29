@@ -112,6 +112,10 @@ impl Sprite {
         Ok(Sprite { name, img })
     }
 
+    pub(super) fn name(&self) -> &'static str {
+        self.name
+    }
+
     pub(super) fn overlay(&self, image: &mut RgbaImage, x: i64, y: i64) {
         trace!("placing sprite {} at ({x}, {y})", self.name);
         imageops::overlay(image, &self.img, x, y);

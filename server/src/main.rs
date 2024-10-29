@@ -52,7 +52,7 @@ async fn image(
         weather::cause_havoc(&mut data);
     }
 
-    let image = graphics::render(&state.config, &data)?;
+    let image = state.renderer.render(&data)?;
 
     let (mime_type, body) = match format.into_inner() {
         ImageFormat::Bmp => (mime::IMAGE_BMP, image.bmp_bytes()?),
@@ -76,7 +76,7 @@ async fn run() -> anyhow::Result<()> {
         .map_err(Error::new)?;
 
     let metrics = Metrics::new(&namespace, &prometheus.registry)?;
-    let state = AppState::new(config, metrics)?;
+    let state = AppState::new(&config, metrics)?;
 
     HttpServer::new(move || {
         App::new()
