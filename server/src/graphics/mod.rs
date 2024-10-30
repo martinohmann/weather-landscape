@@ -50,7 +50,7 @@ impl Renderer {
     }
 
     /// Renders the weather data into a landscape image.
-    pub fn render(&self, data: &WeatherData) -> Result<Canvas> {
+    pub fn render(&self, data: &WeatherData) -> Result<Image> {
         let mut ctx = RenderContext::new(data)?;
         let line_points = ctx.compute_line_points(data);
 
@@ -63,17 +63,17 @@ impl Renderer {
 
         // Draw the temperature graph.
         for (x, y) in line_points {
-            ctx.canvas.draw_pixel(x, y);
+            ctx.img.draw_pixel(x, y);
         }
 
         let dark_outside =
             ctx.sun.is_before(ctx.instant, Dawn) || ctx.sun.is_after(ctx.instant, Dusk);
 
         if self.night_mode && dark_outside {
-            ctx.canvas.invert_pixels();
+            ctx.img.invert_pixels();
         }
 
-        Ok(ctx.canvas)
+        Ok(ctx.img)
     }
 
     fn draw_house(&self, ctx: &mut RenderContext, weather: &DataPoint) {
@@ -89,7 +89,7 @@ impl Renderer {
 
         let y = ctx.temperature_to_y(weather.air_temperature) - house.height() as i64;
 
-        house.overlay(&mut ctx.canvas, 0, y);
+        house.overlay(&mut ctx.img, 0, y);
         self.metrics.object_counter(house.name()).inc();
     }
 
@@ -98,14 +98,14 @@ impl Renderer {
         let next_sunrise = ctx.sun.next_phase(ctx.instant, Sunrise);
         let sun_x = ctx.timestamp_to_x(next_sunrise) - (sun.width() / 2) as i64;
 
-        sun.overlay(&mut ctx.canvas, sun_x, 0);
+        sun.overlay(&mut ctx.img, sun_x, 0);
         self.metrics.object_counter(sun.name()).inc();
 
         let moon = sprite("moon_00");
         let next_sunset = ctx.sun.next_phase(ctx.instant, Sunset);
         let moon_x = ctx.timestamp_to_x(next_sunset) - (moon.width() / 4) as i64;
 
-        moon.overlay(&mut ctx.canvas, moon_x, 0);
+        moon.overlay(&mut ctx.img, moon_x, 0);
         self.metrics.object_counter(moon.name()).inc();
     }
 
@@ -137,7 +137,7 @@ impl Renderer {
         if let Some(&y) = line_points.get(&x) {
             let sprite = sprite(name);
             let y = y - sprite.height() as i64;
-            sprite.overlay(&mut ctx.canvas, x, y);
+            sprite.overlay(&mut ctx.img, x, y);
             self.metrics.object_counter(sprite.name()).inc();
         }
     }
@@ -243,7 +243,7 @@ impl Renderer {
         for &n in cloudset {
             let offset = rng.gen_range(0..width);
             let cloud = spriten("cloud", n);
-            cloud.overlay(&mut ctx.canvas, x + offset, y);
+            cloud.overlay(&mut ctx.img, x + offset, y);
             self.metrics.object_counter(cloud.name()).inc();
         }
     }
@@ -281,7 +281,7 @@ impl Renderer {
                 let x = x_start + i;
                 let y = y_start + (i as f64 + 2.0).sin().round() as i64;
 
-                ctx.canvas.draw_pixel(x, y);
+                ctx.img.draw_pixel(x, y);
             }
 
             self.metrics.object_counter("fog").inc();
@@ -321,11 +321,11 @@ impl Renderer {
                         };
 
                         if snow {
-                            ctx.canvas.draw_pixel(x, y);
+                            ctx.img.draw_pixel(x, y);
                             self.metrics.object_counter("snowflake").inc();
                         } else {
-                            ctx.canvas.draw_pixel(x, y);
-                            ctx.canvas.draw_pixel(x, y - 1);
+                            ctx.img.draw_pixel(x, y);
+                            ctx.img.draw_pixel(x, y - 1);
                             self.metrics.object_counter("raindrop").inc();
                         }
                     }
@@ -421,7 +421,7 @@ impl Renderer {
                 };
                 let tree = spriten(name, wind_index);
                 let y_offset = (y - tree.height() as i64) + 1;
-                tree.overlay(&mut ctx.canvas, x_offset, y_offset);
+                tree.overlay(&mut ctx.img, x_offset, y_offset);
                 self.metrics.object_counter(tree.name()).inc();
             }
 
@@ -448,39 +448,35 @@ impl Renderer {
         // Center the digits, excluding the sign because it looks better.
         let mut offset = -(digits * (digit_width + 1) / 2) - digit_width;
 
-        sign.overlay(&mut ctx.canvas, x + offset, y);
+        sign.overlay(&mut ctx.img, x + offset, y);
         self.metrics.object_counter(sign.name()).inc();
         offset += digit_width + 1;
 
         if d1 > 0 {
             let digit = spriten("digit", d1 as _);
-            digit.overlay(&mut ctx.canvas, x + offset, y);
+            digit.overlay(&mut ctx.img, x + offset, y);
             self.metrics.object_counter(digit.name()).inc();
             offset += digit_width + 1;
         }
 
         let digit = spriten("digit", d2 as _);
-        digit.overlay(&mut ctx.canvas, x + offset, y);
+        digit.overlay(&mut ctx.img, x + offset, y);
         self.metrics.object_counter(digit.name()).inc();
     }
 }
 
 #[derive(Debug)]
-pub struct Canvas {
-    img: RgbaImage,
-}
+pub struct Image(RgbaImage);
 
-impl Canvas {
+impl Image {
     fn new(width: u32, height: u32) -> Self {
-        Canvas {
-            img: RgbaImage::from_fn(width, height, |_, _| WHITE),
-        }
+        Image(RgbaImage::from_fn(width, height, |_, _| WHITE))
     }
 
     fn draw_pixel(&mut self, x: i64, y: i64) {
         if x >= 0 && x < self.width() as i64 && y >= 0 && y < self.height() as i64 {
             trace!("drawing pixel at ({x}, {y})");
-            self.img.put_pixel(x as u32, y as u32, BLACK);
+            self.0.put_pixel(x as u32, y as u32, BLACK);
         }
     }
 
@@ -492,7 +488,7 @@ impl Canvas {
 
     pub fn epd_bytes(&self) -> Result<Vec<u8>> {
         // The image needs to be rotated for the e-paper display.
-        let image = imageops::rotate90(&self.img);
+        let image = imageops::rotate90(&self.0);
         let buf_len = buffer_len(WIDTH as usize, HEIGHT as usize);
         let mut buf = vec![Color::White.get_byte_value(); buf_len];
         let mut display =
@@ -513,29 +509,29 @@ impl Canvas {
 
     pub fn bmp_bytes(&self) -> Result<Vec<u8>> {
         let mut buf: Vec<u8> = Vec::new();
-        self.img
+        self.0
             .write_to(&mut Cursor::new(&mut buf), ImageFormat::Bmp)?;
         Ok(buf)
     }
 }
 
-impl Deref for Canvas {
+impl Deref for Image {
     type Target = RgbaImage;
 
     fn deref(&self) -> &Self::Target {
-        &self.img
+        &self.0
     }
 }
 
-impl DerefMut for Canvas {
+impl DerefMut for Image {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.img
+        &mut self.0
     }
 }
 
 #[derive(Debug)]
 struct RenderContext {
-    canvas: Canvas,
+    img: Image,
     sun: Sun,
     // X-offset for the weather graph.
     x_offset: i64,
@@ -558,8 +554,8 @@ impl RenderContext {
         // We'll flip width and height here. The e-paper display works in portrait mode but we'd like
         // to draw the image in landscape mode, because it's more intiutive. The rendered image gets
         // rotated by 90 degrees before serving it to the esp32.
-        let canvas = Canvas::new(HEIGHT, WIDTH);
-        let (width, height) = canvas.dimensions();
+        let img = Image::new(HEIGHT, WIDTH);
+        let (width, height) = img.dimensions();
         let (latitude, longitude) = (data.coords.latitude, data.coords.longitude);
         let x_offset = sprite("house_00").width() as i64;
         let x_step = (width as i64 - x_offset) / (data.forecasts.len() as i64 - 1);
@@ -600,7 +596,7 @@ impl RenderContext {
         };
 
         Ok(RenderContext {
-            canvas,
+            img,
             sun,
             x_step,
             x_offset,
@@ -614,7 +610,7 @@ impl RenderContext {
 
     fn timestamp_to_x(&self, timestamp: Timestamp) -> i64 {
         let delta = timestamp.duration_since(self.instant).as_secs_f64();
-        let width = self.canvas.width() as f64 - self.x_offset as f64;
+        let width = self.img.width() as f64 - self.x_offset as f64;
         ((delta / SECONDS_DAY) * width).round() as i64 + self.x_offset
     }
 
