@@ -268,33 +268,23 @@ impl Renderer {
         let mut rng = rand::thread_rng();
 
         for y_off in (0..y_range).step_by(y_step) {
-            let y_pos = y + y_off;
             let percentage = (y_off as f64 / y_range as f64) * 100.0;
 
             if data.fog_area_fraction <= percentage {
                 break;
             }
 
-            let mut x_pos = x;
+            let x_start = x + rng.gen_range(3..fog_width / 2);
+            let y_start = y + y_off;
 
-            loop {
-                x_pos += rng.gen_range(3..fog_width / 2);
+            for i in 0..=fog_width {
+                let x = x_start + i;
+                let y = y_start + (i as f64 + 2.0).sin().round() as i64;
 
-                if x_pos + fog_width > x_max {
-                    break;
-                }
-
-                for i in 0..=fog_width {
-                    let x = x_pos + i;
-                    let y = y_pos + (i as f64 + 2.0).sin().round() as i64;
-
-                    ctx.canvas.draw_pixel(x, y);
-                }
-
-                self.metrics.object_counter("fog").inc();
-
-                x_pos += fog_width;
+                ctx.canvas.draw_pixel(x, y);
             }
+
+            self.metrics.object_counter("fog").inc();
         }
     }
 
