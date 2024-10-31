@@ -1,6 +1,6 @@
 //! Helpers to calculate the time of sun phases.
 use jiff::{Timestamp, ToSpan};
-use sun::SunPhase;
+pub use sun::SunPhase;
 
 /// Provides the timestamps of sun phases for a certain location.
 #[derive(Debug, Clone, Copy)]

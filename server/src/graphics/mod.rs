@@ -1,38 +1,24 @@
+mod img;
 mod sprites;
 
-use self::sprites::{sprite, spriten};
+pub use self::img::{Image, ImageFormat};
+use self::{
+    img::{BLACK, TRANSPARENT, WHITE},
+    sprites::{sprite, spriten},
+};
 use crate::{
     app::Metrics,
     config::Config,
     error::{Error, Result},
-    sun::Sun,
+    sun::{Sun, SunPhase::*},
     weather::{Condition, DataPoint, WeatherData},
 };
-use anyhow::anyhow;
-use embedded_graphics::prelude::*;
-use epd_waveshare::{
-    buffer_len,
-    color::Color,
-    epd2in9_v2::{HEIGHT, WIDTH},
-    graphics::VarDisplay,
-};
-use image::{imageops, Pixel, Rgba, RgbaImage};
+use epd_waveshare::epd2in9_v2::{HEIGHT, WIDTH};
 use imageproc::drawing::BresenhamLineIter;
 use jiff::{civil::time, tz::TimeZone, SignedDuration, Timestamp};
 use rand::{seq::SliceRandom, Rng};
-use serde::Deserialize;
-use std::{
-    collections::BTreeMap,
-    io::Cursor,
-    ops::{Deref, DerefMut},
-};
-use sun::SunPhase::*;
-use tracing::{debug, trace};
-
-const SECONDS_DAY: f64 = 24.0 * 60.0 * 60.0;
-const BLACK: Rgba<u8> = Rgba([0, 0, 0, 255]);
-const WHITE: Rgba<u8> = Rgba([255, 255, 255, 255]);
-const TRANSPARENT: Rgba<u8> = Rgba([0, 0, 0, 0]);
+use std::collections::BTreeMap;
+use tracing::debug;
 
 /// Renders landscape images from weather data.
 #[derive(Clone)]
@@ -467,107 +453,6 @@ impl Renderer {
 }
 
 #[derive(Debug)]
-pub struct Image(RgbaImage);
-
-impl Image {
-    fn new(width: u32, height: u32) -> Self {
-        Image(RgbaImage::from_fn(width, height, |_, _| WHITE))
-    }
-
-    fn draw_pixel(&mut self, x: i64, y: i64) {
-        if x >= 0 && x < self.width() as i64 && y >= 0 && y < self.height() as i64 {
-            trace!("drawing pixel at ({x}, {y})");
-            self.0.put_pixel(x as u32, y as u32, BLACK);
-        }
-    }
-
-    fn invert_pixels(&mut self) {
-        for pixel in self.pixels_mut() {
-            pixel.invert();
-        }
-    }
-
-    fn encode_epd(&self) -> Result<Vec<u8>> {
-        // The image needs to be rotated for the e-paper display.
-        let image = imageops::rotate90(&self.0);
-        let buf_len = buffer_len(WIDTH as usize, HEIGHT as usize);
-        let mut buf = vec![Color::White.get_byte_value(); buf_len];
-        let mut display =
-            VarDisplay::new(WIDTH, HEIGHT, &mut buf, false).map_err(|err| anyhow!("{err:?}"))?;
-
-        for (x, y, pixel) in image.enumerate_pixels() {
-            let point = Point::new(x as i32, y as i32);
-
-            if *pixel == BLACK {
-                display.set_pixel(Pixel(point, Color::Black));
-            } else {
-                display.set_pixel(Pixel(point, Color::White));
-            }
-        }
-
-        Ok(buf)
-    }
-
-    fn encode_as(&self, format: image::ImageFormat) -> Result<Vec<u8>> {
-        let mut buf: Vec<u8> = Vec::new();
-        self.0.write_to(&mut Cursor::new(&mut buf), format)?;
-        Ok(buf)
-    }
-
-    /// Encodes the image in given format, returning the encoded bytes and a MIME type suitable for
-    /// serving the image.
-    pub fn encode(&self, format: ImageFormat) -> Result<(Vec<u8>, mime::Mime)> {
-        let bytes = match format {
-            ImageFormat::Epd => self.encode_epd()?,
-            ImageFormat::Png => self.encode_as(image::ImageFormat::Png)?,
-            ImageFormat::Gif => self.encode_as(image::ImageFormat::Gif)?,
-            ImageFormat::Bmp => self.encode_as(image::ImageFormat::Bmp)?,
-        };
-        Ok((bytes, format.mime_type()))
-    }
-}
-
-impl Deref for Image {
-    type Target = RgbaImage;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for Image {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-/// Supported image formats.
-#[derive(Deserialize, Debug, Clone, Copy)]
-#[serde(rename_all = "snake_case")]
-pub enum ImageFormat {
-    /// Raw bytes for an E-paper display.
-    Epd,
-    /// PNG image.
-    Png,
-    /// GIF image.
-    Gif,
-    /// BMP image.
-    Bmp,
-}
-
-impl ImageFormat {
-    /// Returns a MIME type suitable for serving the encoded image bytes.
-    pub fn mime_type(&self) -> mime::Mime {
-        match self {
-            ImageFormat::Epd => mime::APPLICATION_OCTET_STREAM,
-            ImageFormat::Png => mime::IMAGE_PNG,
-            ImageFormat::Gif => mime::IMAGE_GIF,
-            ImageFormat::Bmp => mime::IMAGE_BMP,
-        }
-    }
-}
-
-#[derive(Debug)]
 struct RenderContext {
     img: Image,
     sun: Sun,
@@ -647,6 +532,7 @@ impl RenderContext {
     }
 
     fn timestamp_to_x(&self, timestamp: Timestamp) -> i64 {
+        const SECONDS_DAY: f64 = 24.0 * 60.0 * 60.0;
         let delta = timestamp.duration_since(self.instant).as_secs_f64();
         let width = self.img.width() as f64 - self.x_offset as f64;
         ((delta / SECONDS_DAY) * width).round() as i64 + self.x_offset
