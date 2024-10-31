@@ -9,6 +9,7 @@ use crate::{
     app::{AppState, Metrics},
     config::Config,
     error::Error,
+    graphics::ImageFormat,
 };
 use actix_web::{
     get,
@@ -19,15 +20,6 @@ use actix_web::{
 };
 use actix_web_prom::PrometheusMetricsBuilder;
 use serde::Deserialize;
-
-#[derive(Deserialize, Debug, Clone, Copy)]
-#[serde(rename_all = "snake_case")]
-enum ImageFormat {
-    /// Bitmap
-    Bmp,
-    /// E-paper display
-    Epd,
-}
 
 #[derive(Deserialize, Debug)]
 struct ImageRequest {
@@ -53,11 +45,7 @@ async fn image(
     }
 
     let image = state.renderer.render(&data)?;
-
-    let (mime_type, body) = match format.into_inner() {
-        ImageFormat::Bmp => (mime::IMAGE_BMP, image.bmp_bytes()?),
-        ImageFormat::Epd => (mime::APPLICATION_OCTET_STREAM, image.epd_bytes()?),
-    };
+    let (body, mime_type) = image.encode(format.into_inner())?;
 
     state.metrics.image_counter(mime_type.essence_str()).inc();
 

@@ -16,10 +16,11 @@ use epd_waveshare::{
     epd2in9_v2::{HEIGHT, WIDTH},
     graphics::VarDisplay,
 };
-use image::{imageops, ImageFormat, Pixel, Rgba, RgbaImage};
+use image::{imageops, Pixel, Rgba, RgbaImage};
 use imageproc::drawing::BresenhamLineIter;
 use jiff::{civil::time, tz::TimeZone, SignedDuration, Timestamp};
 use rand::{seq::SliceRandom, Rng};
+use serde::Deserialize;
 use std::{
     collections::BTreeMap,
     io::Cursor,
@@ -486,7 +487,7 @@ impl Image {
         }
     }
 
-    pub fn epd_bytes(&self) -> Result<Vec<u8>> {
+    fn encode_epd(&self) -> Result<Vec<u8>> {
         // The image needs to be rotated for the e-paper display.
         let image = imageops::rotate90(&self.0);
         let buf_len = buffer_len(WIDTH as usize, HEIGHT as usize);
@@ -507,11 +508,22 @@ impl Image {
         Ok(buf)
     }
 
-    pub fn bmp_bytes(&self) -> Result<Vec<u8>> {
+    fn encode_as(&self, format: image::ImageFormat) -> Result<Vec<u8>> {
         let mut buf: Vec<u8> = Vec::new();
-        self.0
-            .write_to(&mut Cursor::new(&mut buf), ImageFormat::Bmp)?;
+        self.0.write_to(&mut Cursor::new(&mut buf), format)?;
         Ok(buf)
+    }
+
+    /// Encodes the image in given format, returning the encoded bytes and a MIME type suitable for
+    /// serving the image.
+    pub fn encode(&self, format: ImageFormat) -> Result<(Vec<u8>, mime::Mime)> {
+        let bytes = match format {
+            ImageFormat::Epd => self.encode_epd()?,
+            ImageFormat::Png => self.encode_as(image::ImageFormat::Png)?,
+            ImageFormat::Gif => self.encode_as(image::ImageFormat::Gif)?,
+            ImageFormat::Bmp => self.encode_as(image::ImageFormat::Bmp)?,
+        };
+        Ok((bytes, format.mime_type()))
     }
 }
 
@@ -526,6 +538,32 @@ impl Deref for Image {
 impl DerefMut for Image {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+/// Supported image formats.
+#[derive(Deserialize, Debug, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum ImageFormat {
+    /// Raw bytes for an E-paper display.
+    Epd,
+    /// PNG image.
+    Png,
+    /// GIF image.
+    Gif,
+    /// BMP image.
+    Bmp,
+}
+
+impl ImageFormat {
+    /// Returns a MIME type suitable for serving the encoded image bytes.
+    pub fn mime_type(&self) -> mime::Mime {
+        match self {
+            ImageFormat::Epd => mime::APPLICATION_OCTET_STREAM,
+            ImageFormat::Png => mime::IMAGE_PNG,
+            ImageFormat::Gif => mime::IMAGE_GIF,
+            ImageFormat::Bmp => mime::IMAGE_BMP,
+        }
     }
 }
 
