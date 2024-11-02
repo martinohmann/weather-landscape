@@ -13,8 +13,15 @@
 
 This is a rewrite of the awesome [`weather_landscape`][weather_landscape]
 project. If you're confused what all this here is about, I highly recommend to
-check out the original project. It has a lot of great imagery to offer, I
-promise!
+check out the original project. It has a lot of great imagery describing the
+encoding principles, too.
+
+<table>
+<tr>
+<td><img src="assets/box-closed.jpg" /></td>
+<td><img src="assets/box-open.jpg" /></td>
+</tr>
+</table>
 
 ## Why?
 
@@ -35,6 +42,8 @@ Apart from the features mentioned in the README of
   drops and snow flakes.
 - **Night mode**: At night time the colors are inverted (white scenery on black
   background).
+- **Metrics**: The server provides Prometheus metrics for monitoring. I use
+  these to get alerted when the battery of the esp32 died, for example.
 
 ## Setup
 
