@@ -1,5 +1,4 @@
 use crate::error::Result;
-use anyhow::anyhow;
 use embedded_graphics::prelude::*;
 use epd_waveshare::{
     buffer_len,
@@ -46,8 +45,7 @@ impl Image {
         let image = imageops::rotate90(&self.0);
         let buf_len = buffer_len(WIDTH as usize, HEIGHT as usize);
         let mut buf = vec![Color::White.get_byte_value(); buf_len];
-        let mut display =
-            VarDisplay::new(WIDTH, HEIGHT, &mut buf, false).map_err(|err| anyhow!("{err:?}"))?;
+        let mut display = VarDisplay::new(WIDTH, HEIGHT, &mut buf, false)?;
 
         for (x, y, pixel) in image.enumerate_pixels() {
             let point = Point::new(x as i32, y as i32);

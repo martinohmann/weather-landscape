@@ -2961,7 +2961,6 @@ version = "0.1.0"
 dependencies = [
  "actix-web",
  "actix-web-prom",
- "anyhow",
  "config",
  "embedded-graphics",
  "epd-waveshare",

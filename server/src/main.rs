@@ -8,7 +8,7 @@ mod weather;
 use crate::{
     app::{AppState, Metrics},
     config::Config,
-    error::Error,
+    error::{Error, Result},
     graphics::ImageFormat,
 };
 use actix_web::{
@@ -54,7 +54,7 @@ async fn image(
         .body(body))
 }
 
-async fn run() -> anyhow::Result<()> {
+async fn run() -> Result<()> {
     let config = Config::load()?;
 
     let namespace = env!("CARGO_PKG_NAME").replace('-', "_");

@@ -1,9 +1,11 @@
 use actix_web::error::ResponseError;
+use epd_waveshare::graphics::VarDisplayError;
 use std::fmt::Display;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
     #[error("Image error: {0}")]
     Image(#[from] image::ImageError),
@@ -15,16 +17,22 @@ pub enum Error {
     Config(#[from] config::ConfigError),
     #[error("Prometheus error: {0}")]
     Prometheus(#[from] prometheus::Error),
-    #[error(transparent)]
-    Anyhow(#[from] anyhow::Error),
+    #[error("IO error: {0}")]
+    IOError(#[from] std::io::Error),
     #[error("{0}")]
     Message(String),
 }
 
 impl Error {
-    pub fn new(msg: impl Display) -> Self {
+    pub(crate) fn new(msg: impl Display) -> Self {
         Error::Message(msg.to_string())
     }
 }
 
 impl ResponseError for Error {}
+
+impl From<VarDisplayError> for Error {
+    fn from(err: VarDisplayError) -> Self {
+        Error::new(format!("VarDisplay error: {err:?}"))
+    }
+}
