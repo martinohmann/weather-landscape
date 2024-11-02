@@ -10,8 +10,8 @@ services:
     restart: unless-stopped
     environment:
       - RUST_LOG=info
-      - LATITUDE=${LATITUDE}
-      - LONGITUDE=${LONGITUDE}
+      - WEATHER_LATITUDE=${WEATHER_LATITUDE}
+      - WEATHER_LONGITUDE=${WEATHER_LONGITUDE}
     networks:
       - weather-net
     user: "nobody"

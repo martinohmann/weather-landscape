@@ -8,7 +8,7 @@ use self::{
 };
 use crate::{
     app::Metrics,
-    config::Config,
+    config::ImageConfig,
     error::{Error, Result},
     sun::{Sun, SunPhase::*},
     weather::{Condition, DataPoint, WeatherData},
@@ -29,7 +29,7 @@ pub struct Renderer {
 
 impl Renderer {
     /// Creates a new `Renderer` from config and metrics.
-    pub fn new(config: &Config, metrics: Metrics) -> Self {
+    pub fn new(config: &ImageConfig, metrics: Metrics) -> Self {
         Renderer {
             night_mode: !config.disable_night_mode,
             metrics,

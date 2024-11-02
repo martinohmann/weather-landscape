@@ -6,10 +6,26 @@ use tracing::debug;
 /// Application configuration sourced from env and/or config file.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
-    pub latitude: f64,
-    pub longitude: f64,
+    #[serde(default)]
+    pub image: ImageConfig,
+    pub weather: WeatherConfig,
+}
+
+/// Image configuration.
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ImageConfig {
+    /// Disable inverting colors at night time.
     #[serde(default)]
     pub disable_night_mode: bool,
+}
+
+/// Weather configuration.
+#[derive(Debug, Clone, Deserialize)]
+pub struct WeatherConfig {
+    /// The latitude of the location.
+    pub latitude: f64,
+    /// The longitude of the location.
+    pub longitude: f64,
 }
 
 impl Config {

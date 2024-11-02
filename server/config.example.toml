@@ -3,14 +3,17 @@
 # Alternatively, you can also pass the configuration as environment variables
 # to the server.
 
-# The latitude of your location. Can also be set via the `LATITUDE` environment
-# variable.
+[weather]
+# The latitude of your location. Can also be set via the `WEATHER_LATITUDE`
+# environment variable.
 latitude = 52.516313944000835
 
-# The longitude of your location. Can also be set via the `LONGITUDE` environment
-# variable.
+# The longitude of your location. Can also be set via the `WEATHER_LONGITUDE`
+# environment variable.
 longitude = 13.377667565271926
 
+[image]
 # If you don't like inverted colors at night, you can disable night mode by
-# setting this to `true`.
+# setting this to `true`. Can also be set via the `IMAGE_DISABLE_NIGHT_MODE`
+# environment variable.
 disable_night_mode = false
