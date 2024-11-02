@@ -18,7 +18,7 @@ pub enum Error {
     #[error("Prometheus error: {0}")]
     Prometheus(#[from] prometheus::Error),
     #[error("IO error: {0}")]
-    IOError(#[from] std::io::Error),
+    Io(#[from] std::io::Error),
     #[error("{0}")]
     Message(String),
 }
@@ -34,5 +34,11 @@ impl ResponseError for Error {}
 impl From<VarDisplayError> for Error {
     fn from(err: VarDisplayError) -> Self {
         Error::new(format!("VarDisplay error: {err:?}"))
+    }
+}
+
+impl From<Box<dyn std::error::Error + Send + Sync>> for Error {
+    fn from(err: Box<dyn std::error::Error + Send + Sync>) -> Self {
+        Error::new(err)
     }
 }

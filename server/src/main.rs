@@ -8,7 +8,7 @@ mod weather;
 use crate::{
     app::{AppState, Metrics},
     config::Config,
-    error::{Error, Result},
+    error::Result,
     graphics::ImageFormat,
 };
 use actix_web::{
@@ -60,8 +60,7 @@ async fn run() -> Result<()> {
     let namespace = env!("CARGO_PKG_NAME").replace('-', "_");
     let prometheus = PrometheusMetricsBuilder::new(&namespace)
         .endpoint("/metrics")
-        .build()
-        .map_err(Error::new)?;
+        .build()?;
 
     let metrics = Metrics::new(&namespace, &prometheus.registry)?;
     let state = AppState::new(&config, metrics)?;
