@@ -45,7 +45,7 @@ impl Renderer {
 
         self.draw_celestial_bodies(&mut ctx);
         self.draw_current_weather(&mut ctx, &data.current, &line_points);
-        self.draw_forecasts(&mut ctx, data, &line_points);
+        self.draw_forecasts(&mut ctx, &data.forecasts, &line_points);
         self.draw_midday_and_midnight(&mut ctx, &line_points);
 
         // Draw the temperature graph.
@@ -138,7 +138,7 @@ impl Renderer {
         let cloud_height = sprite("cloud_02").height() as i64;
 
         self.draw_house(ctx, weather);
-        self.draw_clouds(ctx, weather.cloud_area_fraction, 0, 5, ctx.x_offset);
+        self.draw_clouds(ctx, weather, 0, 5, ctx.x_offset);
         self.draw_fog(
             ctx,
             weather,
@@ -154,16 +154,15 @@ impl Renderer {
     fn draw_forecasts(
         &self,
         ctx: &mut RenderContext,
-        data: &WeatherData,
+        forecasts: &[DataPoint],
         line_points: &BTreeMap<i64, i64>,
     ) {
-        let forecasts = &data.forecasts;
         let cloud_height = sprite("cloud_02").height() as i64;
 
         // Only draw a forecast sample for every 4 hours. It'll get too crowded otherwise.
         for (i, forecast) in forecasts.iter().enumerate().step_by(4) {
             let x = ctx.forecast_x(i);
-            self.draw_clouds(ctx, forecast.cloud_area_fraction, x, 5, ctx.x_step * 4);
+            self.draw_clouds(ctx, forecast, x, 5, ctx.x_step * 4);
             self.draw_trees(ctx, forecast, x, line_points);
             self.draw_fog(
                 ctx,
@@ -183,18 +182,17 @@ impl Renderer {
             );
         }
 
-        self.draw_temperature_extrema(ctx, data, ctx.min_temperature);
-        self.draw_temperature_extrema(ctx, data, ctx.max_temperature);
+        self.draw_temperature_extrema(ctx, forecasts, ctx.min_temperature);
+        self.draw_temperature_extrema(ctx, forecasts, ctx.max_temperature);
     }
 
     fn draw_temperature_extrema(
         &self,
         ctx: &mut RenderContext,
-        data: &WeatherData,
+        forecasts: &[DataPoint],
         temperature: f64,
     ) {
-        if let Some((i, data_point)) = data
-            .forecasts
+        if let Some((i, data_point)) = forecasts
             .iter()
             .enumerate()
             .find(|(_, dp)| dp.air_temperature == temperature)
@@ -209,8 +207,8 @@ impl Renderer {
         self.draw_digits(ctx, x, y + 5, temperature.round() as i64);
     }
 
-    fn draw_clouds(&self, ctx: &mut RenderContext, percentage: f64, x: i64, y: i64, width: i64) {
-        let cloudset: &[usize] = match percentage {
+    fn draw_clouds(&self, ctx: &mut RenderContext, data: &DataPoint, x: i64, y: i64, width: i64) {
+        let cloudset: &[usize] = match data.cloud_area_fraction {
             2.0..5.0 => &[2],
             5.0..10.0 => &[3, 2],
             10.0..20.0 => &[5, 3, 2],
