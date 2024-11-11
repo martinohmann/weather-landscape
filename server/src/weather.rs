@@ -46,10 +46,12 @@ impl Inner {
             )?)
             .await?;
 
-        self.last_response = Some(response.clone());
         let body = response.body()?;
+        let data = WeatherData::from_body(&body)?;
 
-        WeatherData::from_body(&body)
+        self.last_response = Some(response);
+
+        Ok(data)
     }
 }
 
