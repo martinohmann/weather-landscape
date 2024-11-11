@@ -25,14 +25,14 @@ const USER_AGENT: &str = concat!(
 );
 
 #[derive(Debug)]
-struct Inner {
+struct WeatherInner {
     service: ConcurrencyLimit<RateLimit<Monsoon>>,
     last_response: Option<Response>,
     latitude: f64,
     longitude: f64,
 }
 
-impl Inner {
+impl WeatherInner {
     async fn get(&mut self) -> Result<WeatherData> {
         let response = self
             .service
@@ -57,7 +57,7 @@ impl Inner {
 
 #[derive(Debug, Clone)]
 pub struct Weather {
-    inner: Arc<Mutex<Inner>>,
+    inner: Arc<Mutex<WeatherInner>>,
 }
 
 impl Weather {
@@ -72,7 +72,7 @@ impl Weather {
             .service(monsoon);
 
         Ok(Weather {
-            inner: Arc::new(Mutex::new(Inner {
+            inner: Arc::new(Mutex::new(WeatherInner {
                 service,
                 last_response: None,
                 latitude,
