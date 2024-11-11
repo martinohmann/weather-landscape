@@ -46,19 +46,11 @@ impl Sun {
 
     /// Returns `true` if `ts` is between the [`SunPhase`]s given by `start` and `end`.
     ///
-    /// The `start` [`SunPhase`] needs to happen before `end`.
-    ///
-    /// # Panics
-    ///
-    /// If `start` >= `end`, this method panics.
+    /// The `end` [`SunPhase`] needs to happens after `start`, this method will always return
+    /// `false`.
     pub fn is_between(&self, ts: Timestamp, start: SunPhase, end: SunPhase) -> bool {
         let start_ts = self.phase(ts, start);
         let end_ts = self.phase(ts, end);
-
-        if end_ts < start_ts {
-            panic!("unexpected sun phase order: {end:?} happens before {start:?}, but the argument order does not match this relation");
-        }
-
         start_ts < ts && ts < end_ts
     }
 }
@@ -113,20 +105,10 @@ mod test {
         let date = ts("2024-10-25T15:14:00Z");
 
         assert!(sun.is_between(date, NightEnd, Night));
-        assert!(sun.is_between(date, Sunrise, Sunset));
         assert!(!sun.is_between(date, Sunset, Dusk));
         assert!(!sun.is_between(date, Dusk, Night));
-    }
-
-    #[test]
-    #[should_panic]
-    fn is_between_panic() {
-        use SunPhase::*;
-
-        let sun = Sun::new(52.0, 13.0);
-        let date = ts("2024-10-25T15:14:00Z");
-
-        // Sunrise always happens before sunset.
-        assert!(sun.is_between(date, Sunset, Sunrise));
+        assert!(sun.is_between(date, Sunrise, Sunset));
+        // Sunrise always happens before sunset, so the date cannot be inbetween the two.
+        assert!(!sun.is_between(date, Sunset, Sunrise));
     }
 }
