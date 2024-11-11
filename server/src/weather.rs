@@ -33,6 +33,23 @@ struct WeatherInner {
 }
 
 impl WeatherInner {
+    fn new(latitude: f64, longitude: f64) -> Result<Self> {
+        let monsoon = Monsoon::new(USER_AGENT)?;
+
+        // Limit request volume according to the met.no TOS: https://api.met.no/doc/TermsOfService.
+        let service = ServiceBuilder::new()
+            .concurrency_limit(10)
+            .rate_limit(20, Duration::from_secs(1))
+            .service(monsoon);
+
+        Ok(WeatherInner {
+            service,
+            last_response: None,
+            latitude,
+            longitude,
+        })
+    }
+
     async fn get(&mut self) -> Result<WeatherData> {
         let response = self
             .service
@@ -63,22 +80,9 @@ pub struct Weather {
 impl Weather {
     /// Create a new weather service for the location at `latitude`/`longitude`.
     pub fn new(latitude: f64, longitude: f64) -> Result<Self> {
-        let monsoon = Monsoon::new(USER_AGENT)?;
-
-        // Limit request volume according to the met.no TOS: https://api.met.no/doc/TermsOfService.
-        let service = ServiceBuilder::new()
-            .concurrency_limit(10)
-            .rate_limit(20, Duration::from_secs(1))
-            .service(monsoon);
-
-        Ok(Weather {
-            inner: Arc::new(Mutex::new(WeatherInner {
-                service,
-                last_response: None,
-                latitude,
-                longitude,
-            })),
-        })
+        let inner = WeatherInner::new(latitude, longitude)?;
+        let inner = Arc::new(Mutex::new(inner));
+        Ok(Weather { inner })
     }
 
     /// Fetches weather data.
