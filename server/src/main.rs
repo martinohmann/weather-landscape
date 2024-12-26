@@ -44,7 +44,7 @@ async fn image(
         weather::cause_havoc(&mut data);
     }
 
-    let image = state.renderer.render(&data)?;
+    let image = state.renderer.render(&data);
     let (body, mime_type) = image.encode(format.into_inner())?;
 
     state.metrics.image_counter(mime_type.essence_str()).inc();
