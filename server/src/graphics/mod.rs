@@ -9,7 +9,6 @@ use self::{
 use crate::{
     app::Metrics,
     config::Config,
-    error::{Error, Result},
     sun::{Sun, SunPhase::*},
     weather::{Condition, DataPoint, WeatherData},
 };
@@ -37,8 +36,8 @@ impl Renderer {
     }
 
     /// Renders the weather data into a landscape image.
-    pub fn render(&self, data: &WeatherData) -> Result<Image> {
-        let mut ctx = RenderContext::new(data)?;
+    pub fn render(&self, data: &WeatherData) -> Image {
+        let mut ctx = RenderContext::new(data);
 
         debug!(?data, "rendering image for weather data");
 
@@ -59,7 +58,7 @@ impl Renderer {
             ctx.img.invert_pixels();
         }
 
-        Ok(ctx.img)
+        ctx.img
     }
 
     fn draw_house(&self, ctx: &mut RenderContext, weather: &DataPoint) {
@@ -420,7 +419,7 @@ struct RenderContext {
 }
 
 impl RenderContext {
-    fn new(data: &WeatherData) -> Result<Self> {
+    fn new(data: &WeatherData) -> Self {
         // We'll flip width and height here. The e-paper display works in portrait mode but we'd like
         // to draw the image in landscape mode, because it's more intiutive. The rendered image gets
         // rotated by 90 degrees before serving it to the esp32.
@@ -445,10 +444,6 @@ impl RenderContext {
             .take(data.forecasts.len() - 1)
             .map(|fc| fc.air_temperature)
             .collect();
-
-        if temperatures.is_empty() {
-            return Err(Error::new("forecast misses temperature data"));
-        }
 
         let current_temperature = data.current.air_temperature;
 
@@ -481,8 +476,7 @@ impl RenderContext {
         };
 
         ctx.populate_temperature_graph(data);
-
-        Ok(ctx)
+        ctx
     }
 
     fn timestamp_to_x(&self, timestamp: Timestamp) -> i64 {
