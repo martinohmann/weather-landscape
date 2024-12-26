@@ -161,7 +161,7 @@ impl Renderer {
 
     fn draw_temperature(&self, ctx: &mut RenderContext, temperature: f64, x: i64) {
         let y = ctx.temperature_to_y(temperature);
-        self.draw_digits(ctx, x, y + 5, temperature.round() as i64);
+        self.draw_number(ctx, x, y + 5, temperature.round() as i64);
     }
 
     fn draw_clouds(&self, ctx: &mut RenderContext, data: &DataPoint, x: i64, y: i64, width: i64) {
@@ -357,7 +357,7 @@ impl Renderer {
         }
     }
 
-    fn draw_digits(&self, ctx: &mut RenderContext, x: i64, y: i64, value: i64) {
+    fn draw_number(&self, ctx: &mut RenderContext, x: i64, y: i64, value: i64) {
         let sign = if value >= 0 {
             sprite("digit_10") // plus
         } else {
