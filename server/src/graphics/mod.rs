@@ -4,7 +4,7 @@ mod sprites;
 pub use self::img::{Image, ImageFormat};
 use self::{
     img::{BLACK, TRANSPARENT, WHITE},
-    sprites::{sprite, spriten},
+    sprites::{sprite, spriten, Sprite},
 };
 use crate::{
     app::Metrics,
@@ -64,9 +64,10 @@ impl Renderer {
     }
 
     fn draw_house(&self, ctx: &mut RenderContext, weather: &DataPoint) {
-        let house = if ctx.sun.is_between(ctx.instant, Sunset, Night)
-            || ctx.sun.is_between(ctx.instant, NightEnd, Sunrise)
-        {
+        let twilight = ctx.sun.is_between(ctx.instant, Sunset, Night)
+            || ctx.sun.is_between(ctx.instant, NightEnd, Sunrise);
+
+        let house = if twilight {
             // It's dark outside, lights on.
             sprite("house_01")
         } else {
@@ -76,8 +77,7 @@ impl Renderer {
 
         let y = ctx.temperature_to_y(weather.air_temperature) - house.height() as i64;
 
-        house.overlay(&mut ctx.img, 0, y);
-        self.metrics.object_counter(house.name()).inc();
+        self.draw_sprite(ctx, house, 0, y);
     }
 
     fn draw_celestial_bodies(&self, ctx: &mut RenderContext) {
@@ -85,15 +85,13 @@ impl Renderer {
         let next_sunrise = ctx.sun.next_phase(ctx.instant, Sunrise);
         let sun_x = ctx.timestamp_to_x(next_sunrise) - (sun.width() / 2) as i64;
 
-        sun.overlay(&mut ctx.img, sun_x, 0);
-        self.metrics.object_counter(sun.name()).inc();
+        self.draw_sprite(ctx, sun, sun_x, 0);
 
         let moon = sprite("moon_00");
         let next_sunset = ctx.sun.next_phase(ctx.instant, Sunset);
         let moon_x = ctx.timestamp_to_x(next_sunset) - (moon.width() / 4) as i64;
 
-        moon.overlay(&mut ctx.img, moon_x, 0);
-        self.metrics.object_counter(moon.name()).inc();
+        self.draw_sprite(ctx, moon, moon_x, 0);
     }
 
     fn draw_midday_and_midnight(&self, ctx: &mut RenderContext, line_points: &BTreeMap<i64, i64>) {
@@ -124,9 +122,21 @@ impl Renderer {
         if let Some(&y) = line_points.get(&x) {
             let sprite = sprite(name);
             let y = y - sprite.height() as i64;
-            sprite.overlay(&mut ctx.img, x, y);
-            self.metrics.object_counter(sprite.name()).inc();
+            self.draw_sprite(ctx, sprite, x, y);
         }
+    }
+
+    fn draw_sky(
+        &self,
+        ctx: &mut RenderContext,
+        data: &DataPoint,
+        x: i64,
+        width: i64,
+        line_points: &BTreeMap<i64, i64>,
+    ) {
+        self.draw_clouds(ctx, data, x, 5, width);
+        self.draw_precipitation(ctx, data, x, ctx.cloud_height + 5, width, line_points);
+        self.draw_fog(ctx, data, x, ctx.cloud_height + 10, width, line_points);
     }
 
     fn draw_current_weather(
@@ -135,19 +145,8 @@ impl Renderer {
         weather: &DataPoint,
         line_points: &BTreeMap<i64, i64>,
     ) {
-        let cloud_height = sprite("cloud_02").height() as i64;
-
         self.draw_house(ctx, weather);
-        self.draw_clouds(ctx, weather, 0, 5, ctx.x_offset);
-        self.draw_fog(
-            ctx,
-            weather,
-            0,
-            cloud_height + 10,
-            ctx.x_offset,
-            line_points,
-        );
-        self.draw_precipitation(ctx, weather, 0, cloud_height + 5, ctx.x_offset, line_points);
+        self.draw_sky(ctx, weather, 0, ctx.x_offset, line_points);
         self.draw_temperature(ctx, weather.air_temperature, ctx.x_offset / 2);
     }
 
@@ -157,29 +156,11 @@ impl Renderer {
         forecasts: &[DataPoint],
         line_points: &BTreeMap<i64, i64>,
     ) {
-        let cloud_height = sprite("cloud_02").height() as i64;
-
         // Only draw a forecast sample for every 4 hours. It'll get too crowded otherwise.
         for (i, forecast) in forecasts.iter().enumerate().step_by(4) {
             let x = ctx.forecast_x(i);
-            self.draw_clouds(ctx, forecast, x, 5, ctx.x_step * 4);
+            self.draw_sky(ctx, forecast, x, ctx.x_step * 4, line_points);
             self.draw_trees(ctx, forecast, x, line_points);
-            self.draw_fog(
-                ctx,
-                forecast,
-                x,
-                cloud_height + 10,
-                ctx.x_step * 4,
-                line_points,
-            );
-            self.draw_precipitation(
-                ctx,
-                forecast,
-                x,
-                cloud_height + 5,
-                ctx.x_step * 4,
-                line_points,
-            );
         }
 
         self.draw_temperature_extrema(ctx, forecasts, ctx.min_temperature);
@@ -228,8 +209,7 @@ impl Renderer {
         for &n in cloudset {
             let offset = rng.gen_range(0..width);
             let cloud = spriten("cloud", n);
-            cloud.overlay(&mut ctx.img, x + offset, y);
-            self.metrics.object_counter(cloud.name()).inc();
+            self.draw_sprite(ctx, cloud, x + offset, y);
         }
     }
 
@@ -406,8 +386,7 @@ impl Renderer {
                 };
                 let tree = spriten(name, wind_index);
                 let y_offset = (y - tree.height() as i64) + 1;
-                tree.overlay(&mut ctx.img, x_offset, y_offset);
-                self.metrics.object_counter(tree.name()).inc();
+                self.draw_sprite(ctx, tree, x_offset, y_offset);
             }
 
             x_offset += 9;
@@ -433,20 +412,22 @@ impl Renderer {
         // Center the digits, excluding the sign because it looks better.
         let mut offset = -(digits * (digit_width + 1) / 2) - digit_width;
 
-        sign.overlay(&mut ctx.img, x + offset, y);
-        self.metrics.object_counter(sign.name()).inc();
+        self.draw_sprite(ctx, sign, x + offset, y);
         offset += digit_width + 1;
 
         if d1 > 0 {
             let digit = spriten("digit", d1 as _);
-            digit.overlay(&mut ctx.img, x + offset, y);
-            self.metrics.object_counter(digit.name()).inc();
+            self.draw_sprite(ctx, digit, x + offset, y);
             offset += digit_width + 1;
         }
 
         let digit = spriten("digit", d2 as _);
-        digit.overlay(&mut ctx.img, x + offset, y);
-        self.metrics.object_counter(digit.name()).inc();
+        self.draw_sprite(ctx, digit, x + offset, y);
+    }
+
+    fn draw_sprite(&self, ctx: &mut RenderContext, sprite: &Sprite, x: i64, y: i64) {
+        sprite.overlay(&mut ctx.img, x, y);
+        self.metrics.object_counter(sprite.name()).inc();
     }
 }
 
@@ -460,6 +441,8 @@ struct RenderContext {
     x_step: i64,
     // Y-offset for the weather graph.
     y_offset: i64,
+    // Height of the clouds.
+    cloud_height: i64,
     // The minimum temperature from the forecast.
     min_temperature: f64,
     // The maximum temperature from the forecast.
@@ -482,6 +465,7 @@ impl RenderContext {
         let x_step = (width as i64 - x_offset) / (data.forecasts.len() as i64 - 1);
         let y_step = (height as f64 * 0.39).round() as i64;
         let y_offset = (height as i64 / 2) + y_step;
+        let cloud_height = sprite("cloud_02").height() as i64;
         let instant = Timestamp::now();
 
         let sun = Sun::new(latitude, longitude);
@@ -522,6 +506,7 @@ impl RenderContext {
             x_step,
             x_offset,
             y_offset,
+            cloud_height,
             min_temperature,
             max_temperature,
             degrees_per_pixel,
