@@ -39,17 +39,16 @@ impl Renderer {
     /// Renders the weather data into a landscape image.
     pub fn render(&self, data: &WeatherData) -> Result<Image> {
         let mut ctx = RenderContext::new(data)?;
-        let line_points = ctx.compute_line_points(data);
 
         debug!(?data, "rendering image for weather data");
 
         self.draw_celestial_bodies(&mut ctx);
-        self.draw_current_weather(&mut ctx, &data.current, &line_points);
-        self.draw_forecasts(&mut ctx, &data.forecasts, &line_points);
-        self.draw_midday_and_midnight(&mut ctx, &line_points);
+        self.draw_current_weather(&mut ctx, &data.current);
+        self.draw_forecasts(&mut ctx, &data.forecasts);
+        self.draw_midday_and_midnight(&mut ctx);
 
         // Draw the temperature graph.
-        for (x, y) in line_points {
+        for (x, y) in ctx.temperature_graph {
             ctx.img.draw_pixel(x, y);
         }
 
@@ -94,18 +93,12 @@ impl Renderer {
         self.draw_sprite(ctx, moon, moon_x, 0);
     }
 
-    fn draw_midday_and_midnight(&self, ctx: &mut RenderContext, line_points: &BTreeMap<i64, i64>) {
-        self.draw_flower(ctx, "flower_00", 0, line_points);
-        self.draw_flower(ctx, "flower_01", 12, line_points);
+    fn draw_midday_and_midnight(&self, ctx: &mut RenderContext) {
+        self.draw_flower(ctx, "flower_00", 0);
+        self.draw_flower(ctx, "flower_01", 12);
     }
 
-    fn draw_flower(
-        &self,
-        ctx: &mut RenderContext,
-        name: &str,
-        hour: i8,
-        line_points: &BTreeMap<i64, i64>,
-    ) {
+    fn draw_flower(&self, ctx: &mut RenderContext, name: &str, hour: i8) {
         let local_time = ctx.instant.to_zoned(TimeZone::system());
         let mut time = local_time.with().time(time(hour, 0, 0, 0)).build().unwrap();
         if time < local_time {
@@ -119,48 +112,31 @@ impl Renderer {
             return;
         }
 
-        if let Some(&y) = line_points.get(&x) {
+        if let Some(&y) = ctx.temperature_graph.get(&x) {
             let sprite = sprite(name);
             let y = y - sprite.height() as i64;
             self.draw_sprite(ctx, sprite, x, y);
         }
     }
 
-    fn draw_sky(
-        &self,
-        ctx: &mut RenderContext,
-        data: &DataPoint,
-        x: i64,
-        width: i64,
-        line_points: &BTreeMap<i64, i64>,
-    ) {
+    fn draw_sky(&self, ctx: &mut RenderContext, data: &DataPoint, x: i64, width: i64) {
         self.draw_clouds(ctx, data, x, 5, width);
-        self.draw_precipitation(ctx, data, x, ctx.cloud_height + 5, width, line_points);
-        self.draw_fog(ctx, data, x, ctx.cloud_height + 10, width, line_points);
+        self.draw_precipitation(ctx, data, x, ctx.cloud_height + 5, width);
+        self.draw_fog(ctx, data, x, ctx.cloud_height + 10, width);
     }
 
-    fn draw_current_weather(
-        &self,
-        ctx: &mut RenderContext,
-        weather: &DataPoint,
-        line_points: &BTreeMap<i64, i64>,
-    ) {
+    fn draw_current_weather(&self, ctx: &mut RenderContext, weather: &DataPoint) {
         self.draw_house(ctx, weather);
-        self.draw_sky(ctx, weather, 0, ctx.x_offset, line_points);
+        self.draw_sky(ctx, weather, 0, ctx.x_offset);
         self.draw_temperature(ctx, weather.air_temperature, ctx.x_offset / 2);
     }
 
-    fn draw_forecasts(
-        &self,
-        ctx: &mut RenderContext,
-        forecasts: &[DataPoint],
-        line_points: &BTreeMap<i64, i64>,
-    ) {
+    fn draw_forecasts(&self, ctx: &mut RenderContext, forecasts: &[DataPoint]) {
         // Only draw a forecast sample for every 4 hours. It'll get too crowded otherwise.
         for (i, forecast) in forecasts.iter().enumerate().step_by(4) {
             let x = ctx.forecast_x(i);
-            self.draw_sky(ctx, forecast, x, ctx.x_step * 4, line_points);
-            self.draw_trees(ctx, forecast, x, line_points);
+            self.draw_sky(ctx, forecast, x, ctx.x_step * 4);
+            self.draw_trees(ctx, forecast, x);
         }
 
         self.draw_temperature_extrema(ctx, forecasts, ctx.min_temperature);
@@ -213,17 +189,12 @@ impl Renderer {
         }
     }
 
-    fn draw_fog(
-        &self,
-        ctx: &mut RenderContext,
-        data: &DataPoint,
-        x: i64,
-        y: i64,
-        width: i64,
-        line_points: &BTreeMap<i64, i64>,
-    ) {
+    fn draw_fog(&self, ctx: &mut RenderContext, data: &DataPoint, x: i64, y: i64, width: i64) {
         let x_max = x + width;
-        let Some(&y_max) = (x..x_max).filter_map(|x| line_points.get(&x)).min() else {
+        let Some(&y_max) = (x..x_max)
+            .filter_map(|x| ctx.temperature_graph.get(&x))
+            .min()
+        else {
             return;
         };
 
@@ -260,7 +231,6 @@ impl Renderer {
         x: i64,
         y: i64,
         width: i64,
-        line_points: &BTreeMap<i64, i64>,
     ) {
         if data.precipitation_amount <= 0.0 {
             // There's nothing that could fall from the sky.
@@ -276,7 +246,7 @@ impl Renderer {
         let r = 1.0 - (data.precipitation_amount / heaviness) / factor;
 
         for x in x..x + width {
-            if let Some(&y_max) = line_points.get(&x) {
+            if let Some(&y_max) = ctx.temperature_graph.get(&x) {
                 for y in (y..y_max).step_by(2) {
                     if rand::random::<f64>() > r {
                         let snow = match data.condition {
@@ -299,13 +269,7 @@ impl Renderer {
         }
     }
 
-    fn draw_trees(
-        &self,
-        ctx: &mut RenderContext,
-        data: &DataPoint,
-        x: i64,
-        line_points: &BTreeMap<i64, i64>,
-    ) {
+    fn draw_trees(&self, ctx: &mut RenderContext, data: &DataPoint, x: i64) {
         // @FIXME(mohmann): Simplify this complicated method.
 
         fn direction_distance(a: f64, b: f64) -> f64 {
@@ -376,12 +340,12 @@ impl Renderer {
         for (tree_index, &wind_index) in wind_indices.into_iter().enumerate() {
             let offset = x_offset + 5;
 
-            if offset > line_points.len() as i64 {
+            if offset > ctx.temperature_graph.len() as i64 {
                 break;
             }
 
             if let Some(name) = trees.get(tree_index) {
-                let Some(y) = line_points.get(&offset) else {
+                let Some(y) = ctx.temperature_graph.get(&offset) else {
                     continue;
                 };
                 let tree = spriten(name, wind_index);
@@ -451,6 +415,8 @@ struct RenderContext {
     degrees_per_pixel: f64,
     // The instant at which the render context was created.
     instant: Timestamp,
+    // The points for drawing the temperature graph.
+    temperature_graph: BTreeMap<i64, i64>,
 }
 
 impl RenderContext {
@@ -474,7 +440,7 @@ impl RenderContext {
             .forecasts
             .iter()
             // We'll ignore the last forecast in the temperature calculation because it's going to
-            // be off-screen and is only used to draw the temperature line to the edge of the
+            // be off-screen and is only used to draw the temperature graph to the edge of the
             // screen.
             .take(data.forecasts.len() - 1)
             .map(|fc| fc.air_temperature)
@@ -500,7 +466,7 @@ impl RenderContext {
             temperature_range / y_step as f64
         };
 
-        Ok(RenderContext {
+        let mut ctx = RenderContext {
             img,
             sun,
             x_step,
@@ -511,7 +477,12 @@ impl RenderContext {
             max_temperature,
             degrees_per_pixel,
             instant,
-        })
+            temperature_graph: BTreeMap::new(),
+        };
+
+        ctx.populate_temperature_graph(data);
+
+        Ok(ctx)
     }
 
     fn timestamp_to_x(&self, timestamp: Timestamp) -> i64 {
@@ -530,43 +501,39 @@ impl RenderContext {
         self.x_offset + (self.x_step * (i as i64 + 1))
     }
 
-    fn compute_line_points(&self, data: &WeatherData) -> BTreeMap<i64, i64> {
-        let mut line_points = BTreeMap::new();
+    fn forecast_coords(&self, i: usize, data_point: &DataPoint) -> (i64, i64) {
+        let x = self.forecast_x(i);
+        let y = self.temperature_to_y(data_point.air_temperature);
+        (x, y)
+    }
 
-        let collect_line_points =
-            |line_points: &mut BTreeMap<i64, i64>, x1: i64, y1: i64, x2: i64, y2: i64| {
+    fn populate_temperature_graph(&mut self, data: &WeatherData) {
+        let collect_points =
+            |graph: &mut BTreeMap<i64, i64>, x1: i64, y1: i64, x2: i64, y2: i64| {
                 let (start, end) = ((x1 as f32, y1 as f32), (x2 as f32, y2 as f32));
 
                 for (x, y) in BresenhamLineIter::new(start, end) {
-                    line_points.insert(x as i64, y as i64);
+                    graph.insert(x as i64, y as i64);
                 }
             };
 
-        let forecast_coords = |i: usize, data_point: &DataPoint| -> (i64, i64) {
-            let x = self.forecast_x(i);
-            let y = self.temperature_to_y(data_point.air_temperature);
-            (x, y)
-        };
-
-        // Collect line points for the current temperature below the house.
+        // Collect points for the current temperature below the house.
         let y = self.temperature_to_y(data.current.air_temperature);
 
-        collect_line_points(&mut line_points, 0, y, self.x_offset - 1, y);
+        collect_points(&mut self.temperature_graph, 0, y, self.x_offset - 1, y);
 
-        // Collect line points between the current temperature and the first forecasts.
+        // Collect points between the current temperature and the first forecasts.
         let (x1, y1) = (self.x_offset - 1, y);
-        let (x2, y2) = forecast_coords(0, &data.forecasts[0]);
+        let (x2, y2) = self.forecast_coords(0, &data.forecasts[0]);
 
-        collect_line_points(&mut line_points, x1, y1, x2, y2);
+        collect_points(&mut self.temperature_graph, x1, y1, x2, y2);
 
-        // Collect line points between forecasts.
+        // Collect points between forecasts.
         for (i, window) in data.forecasts.windows(2).enumerate() {
-            let (x1, y1) = forecast_coords(i, &window[0]);
-            let (x2, y2) = forecast_coords(i + 1, &window[1]);
+            let (x1, y1) = self.forecast_coords(i, &window[0]);
+            let (x2, y2) = self.forecast_coords(i + 1, &window[1]);
 
-            collect_line_points(&mut line_points, x1, y1, x2, y2);
+            collect_points(&mut self.temperature_graph, x1, y1, x2, y2);
         }
-
-        line_points
     }
 }
