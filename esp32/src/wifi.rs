@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
     hal::modem::Modem,

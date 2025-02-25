@@ -1,7 +1,7 @@
 use super::display_buffer_size;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use embedded_svc::{
-    http::{client::Client, Method},
+    http::{Method, client::Client},
     utils::io,
 };
 use esp_idf_svc::{

@@ -1,7 +1,8 @@
 use crate::{config::Config, error::Result, graphics::Renderer, weather::Weather};
 use prometheus::{
+    IntCounterVec, Registry,
     core::{AtomicU64, GenericCounter},
-    opts, IntCounterVec, Registry,
+    opts,
 };
 
 /// Holds the application state.

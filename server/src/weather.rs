@@ -1,16 +1,16 @@
 use crate::error::{Error, Result};
 use jiff::Timestamp;
 use monsoon::{
-    body::{Body, TimeSeries},
     Monsoon, Params, Response,
+    body::{Body, TimeSeries},
 };
-use rand::{seq::SliceRandom, Rng};
+use rand::{Rng, seq::SliceRandom};
 use std::time::Duration;
 use std::{str::FromStr, sync::Arc};
 use tokio::sync::Mutex;
 use tower::{
-    limit::{ConcurrencyLimit, RateLimit},
     Service, ServiceBuilder, ServiceExt,
+    limit::{ConcurrencyLimit, RateLimit},
 };
 use tracing::info;
 
