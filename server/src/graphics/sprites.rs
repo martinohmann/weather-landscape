@@ -1,6 +1,6 @@
 use super::{BLACK, TRANSPARENT, WHITE};
 use crate::error::Result;
-use image::{imageops, RgbaImage};
+use image::{RgbaImage, imageops};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::OnceLock;

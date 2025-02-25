@@ -4,7 +4,7 @@ mod sprites;
 pub use self::img::{Image, ImageFormat};
 use self::{
     img::{BLACK, TRANSPARENT, WHITE},
-    sprites::{sprite, spriten, Sprite},
+    sprites::{Sprite, sprite, spriten},
 };
 use crate::{
     app::Metrics,
@@ -14,8 +14,8 @@ use crate::{
 };
 use epd_waveshare::epd2in9_v2::{HEIGHT, WIDTH};
 use imageproc::drawing::BresenhamLineIter;
-use jiff::{civil::time, tz::TimeZone, SignedDuration, Timestamp};
-use rand::{seq::SliceRandom, Rng};
+use jiff::{SignedDuration, Timestamp, civil::time, tz::TimeZone};
+use rand::{Rng, seq::SliceRandom};
 use std::collections::BTreeMap;
 use tracing::debug;
 

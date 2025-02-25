@@ -12,11 +12,10 @@ use crate::{
     graphics::ImageFormat,
 };
 use actix_web::{
-    get,
+    App, HttpResponse, HttpServer, get,
     http::header::ContentType,
     middleware::Logger,
     web::{Data, Path, Query},
-    App, HttpResponse, HttpServer,
 };
 use actix_web_prom::PrometheusMetricsBuilder;
 use serde::Deserialize;

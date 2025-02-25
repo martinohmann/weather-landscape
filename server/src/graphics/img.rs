@@ -6,7 +6,7 @@ use epd_waveshare::{
     epd2in9_v2::{HEIGHT, WIDTH},
     graphics::VarDisplay,
 };
-use image::{imageops, Pixel, Rgba, RgbaImage};
+use image::{Pixel, Rgba, RgbaImage, imageops};
 use serde::Deserialize;
 use std::{
     io::Cursor,

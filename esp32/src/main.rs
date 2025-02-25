@@ -12,7 +12,7 @@ use esp_idf_hal::{
     delay::Ets,
     gpio::{AnyIOPin, Gpio2, PinDriver},
     prelude::*,
-    spi::{config::Config as SpiConfig, SpiDeviceDriver, SpiDriverConfig},
+    spi::{SpiDeviceDriver, SpiDriverConfig, config::Config as SpiConfig},
 };
 use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition};
 use log::{error, info};
