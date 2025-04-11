@@ -1,5 +1,3 @@
-cargo-features = ["edition2024"]
-
 [package]
 name = "weather-landscape"
 version = "0.1.0"
@@ -7,7 +5,7 @@ authors = ["martinohmann <martinohmann@gmail.com>"]
 repository = "https://github.com/martinohmann/weather-landscape"
 edition = "2024"
 resolver = "2"
-rust-version = "1.84"
+rust-version = "1.85"
 
 [[bin]]
 name = "weather-landscape"
@@ -35,12 +33,12 @@ anyhow = "1.0.86"
 embedded-graphics = "0.8.1"
 embedded-svc = "0.28.0"
 epd-waveshare = { git = "https://github.com/caemor/epd-waveshare", rev = "1244f035", features = ["graphics"] }
-esp-idf-hal = { version = "0.44.1", default-features = false }
-esp-idf-svc = { version = "0.49.0", default-features = false }
-esp-idf-sys = { version = "0.35.0", default-features = false }
+esp-idf-hal = { version = "0.45.2", default-features = false }
+esp-idf-svc = { version = "0.51.0", default-features = false }
+esp-idf-sys = { version = "0.36.1", default-features = false }
 log = { version = "0.4", default-features = false }
 toml-cfg = "0.1.3"
 
 [build-dependencies]
-embuild = "0.32.0"
+embuild = "0.33.0"
 toml-cfg = "0.1.3"
