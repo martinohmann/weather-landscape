@@ -79,6 +79,11 @@ pub(super) fn sprites() -> &'static HashMap<&'static str, Sprite> {
         load_sprite!(m, "tree_01");
         load_sprite!(m, "tree_02");
         load_sprite!(m, "tree_03");
+        // Lightning
+        load_sprite!(m, "lightning_00");
+        load_sprite!(m, "lightning_01");
+        load_sprite!(m, "lightning_02");
+        load_sprite!(m, "lightning_03");
         m
     })
 }
