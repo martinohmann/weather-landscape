@@ -30,10 +30,11 @@ struct WeatherInner {
     last_response: Option<Response>,
     latitude: f64,
     longitude: f64,
+    altitude: Option<i32>,
 }
 
 impl WeatherInner {
-    fn new(latitude: f64, longitude: f64) -> Result<Self> {
+    fn new(latitude: f64, longitude: f64, altitude: Option<i32>) -> Result<Self> {
         let monsoon = Monsoon::new(USER_AGENT)?;
 
         // Limit request volume according to the met.no TOS: https://api.met.no/doc/TermsOfService.
@@ -47,6 +48,7 @@ impl WeatherInner {
             last_response: None,
             latitude,
             longitude,
+            altitude,
         })
     }
 
@@ -58,7 +60,7 @@ impl WeatherInner {
             .call(Params::new_with_last_response(
                 self.latitude,
                 self.longitude,
-                None,
+                self.altitude,
                 self.last_response.clone(),
             )?)
             .await?;
@@ -78,9 +80,10 @@ pub struct Weather {
 }
 
 impl Weather {
-    /// Create a new weather service for the location at `latitude`/`longitude`.
-    pub fn new(latitude: f64, longitude: f64) -> Result<Self> {
-        let inner = WeatherInner::new(latitude, longitude)?;
+    /// Create a new weather service for the location at `latitude`/`longitude` with optional
+    /// altitude.
+    pub fn new(latitude: f64, longitude: f64, altitude: Option<i32>) -> Result<Self> {
+        let inner = WeatherInner::new(latitude, longitude, altitude)?;
         let inner = Arc::new(Mutex::new(inner));
         Ok(Weather { inner })
     }
@@ -123,6 +126,7 @@ impl WeatherData {
             coords: Coords {
                 latitude: body.geometry.coordinates.latitude,
                 longitude: body.geometry.coordinates.longitude,
+                altitude: body.geometry.coordinates.altitude,
             },
             current,
             forecasts,
@@ -184,6 +188,7 @@ impl DataPoint {
 pub struct Coords {
     pub longitude: f64,
     pub latitude: f64,
+    pub altitude: f64,
 }
 
 #[derive(Debug, Clone, Copy, Default)]

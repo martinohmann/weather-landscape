@@ -11,6 +11,10 @@ latitude = 52.516313944000835
 # variable.
 longitude = 13.377667565271926
 
+# The altitude of your location in meters. Can also be set via the `ALTITUDE`
+# environment variable. This variable is optional and can be omitted.
+altitude = 0
+
 # If you don't like inverted colors at night, you can disable night mode by
 # setting this to `true`.
 disable_night_mode = false

@@ -7,12 +7,13 @@ pub use sun::SunPhase;
 pub struct Sun {
     lat: f64,
     lon: f64,
+    alt: Option<f64>,
 }
 
 impl Sun {
-    /// Creates a new `Sun` for the location at `lat`/`lon`.
-    pub fn new(lat: f64, lon: f64) -> Self {
-        Sun { lat, lon }
+    /// Creates a new `Sun` for the location at `lat`/`lon` with optional altitude.
+    pub fn new(lat: f64, lon: f64, alt: Option<f64>) -> Self {
+        Sun { lat, lon, alt }
     }
 
     /// Calculates the time for the next [`SunPhase`] relative to the given date. The returned
@@ -30,7 +31,8 @@ impl Sun {
     /// Calculates the time for the given [`SunPhase`] at a given date.
     pub fn phase(&self, ts: Timestamp, phase: SunPhase) -> Timestamp {
         let now_ms = ts.as_millisecond();
-        let phase_ms = sun::time_at_phase(now_ms, phase, self.lat, self.lon, 0.0);
+        let phase_ms =
+            sun::time_at_phase(now_ms, phase, self.lat, self.lon, self.alt.unwrap_or(0.0));
         Timestamp::from_millisecond(phase_ms).expect("timestamp out of bounds")
     }
 
@@ -67,7 +69,7 @@ mod test {
     fn phases() {
         use SunPhase::*;
 
-        let sun = Sun::new(52.0, 13.0);
+        let sun = Sun::new(52.0, 13.0, None);
         let date = ts("2024-10-25T15:14:00Z");
 
         // Phase did not happen yet on `date`.
@@ -83,7 +85,7 @@ mod test {
     fn is_before_or_after() {
         use SunPhase::*;
 
-        let sun = Sun::new(52.0, 13.0);
+        let sun = Sun::new(52.0, 13.0, None);
         let date = ts("2024-10-25T16:14:00Z");
 
         assert!(!sun.is_before(date, NightEnd));
@@ -101,7 +103,7 @@ mod test {
     fn is_between() {
         use SunPhase::*;
 
-        let sun = Sun::new(52.0, 13.0);
+        let sun = Sun::new(52.0, 13.0, None);
         let date = ts("2024-10-25T15:14:00Z");
 
         assert!(sun.is_between(date, NightEnd, Night));

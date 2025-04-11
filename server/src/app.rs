@@ -16,7 +16,7 @@ pub struct AppState {
 impl AppState {
     /// Creates `AppState` from config and metrics.
     pub fn new(config: &Config, metrics: Metrics) -> Result<AppState> {
-        let weather = Weather::new(config.latitude, config.longitude)?;
+        let weather = Weather::new(config.latitude, config.longitude, config.altitude)?;
         let renderer = Renderer::new(config, metrics.clone());
 
         Ok(AppState {
