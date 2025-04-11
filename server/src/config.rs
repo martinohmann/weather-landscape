@@ -8,6 +8,7 @@ use tracing::debug;
 pub struct Config {
     pub latitude: f64,
     pub longitude: f64,
+    pub altitude: Option<i32>,
     #[serde(default)]
     pub disable_night_mode: bool,
 }

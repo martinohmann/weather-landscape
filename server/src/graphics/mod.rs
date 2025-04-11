@@ -425,7 +425,6 @@ impl RenderContext {
         // rotated by 90 degrees before serving it to the esp32.
         let img = Image::new(HEIGHT, WIDTH);
         let (width, height) = img.dimensions();
-        let (latitude, longitude) = (data.coords.latitude, data.coords.longitude);
         let x_offset = sprite("house_00").width() as i64;
         let x_step = (width as i64 - x_offset) / (data.forecasts.len() as i64 - 1);
         let y_step = (height as f64 * 0.39).round() as i64;
@@ -433,7 +432,8 @@ impl RenderContext {
         let cloud_height = sprite("cloud_02").height() as i64;
         let instant = Timestamp::now();
 
-        let sun = Sun::new(latitude, longitude);
+        let coords = &data.coords;
+        let sun = Sun::new(coords.latitude, coords.longitude, Some(coords.altitude));
 
         let temperatures: Vec<f64> = data
             .forecasts
