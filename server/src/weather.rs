@@ -225,56 +225,27 @@ impl FromStr for Condition {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // We don't distiguish between day and night conditions.
-        let normalized = s.trim_end_matches("_day").trim_end_matches("_night");
+        // We don't distiguish between day and night conditions, and we also don't care about
+        // "light" and "heavy" for now.
+        let normalized = s
+            .trim_end_matches("_day")
+            .trim_end_matches("_night")
+            .trim_start_matches("light")
+            .trim_start_matches("heavy");
 
-        // @NOTE(mohmann): There are a lot more specific rain, sleet and snow condition,
-        // but we're not enumerating them explicitly for now but instead collapse them to a handful
-        // fewer variants.
-        //
-        // https://github.com/metno/weathericons/tree/main/weather
+        // Conditions from https://github.com/metno/weathericons/tree/main/weather
         let condition = match normalized {
             "clearsky" => Condition::ClearSky,
             "cloudy" => Condition::Cloudy,
             "fair" => Condition::Fair,
             "fog" => Condition::Fog,
             "partlycloudy" => Condition::PartlyCloudy,
-            // Rain
-            "heavyrain" | "lightrain" | "rain" => Condition::Rain,
-            // Rain showers
-            "heavyrainshowers" | "lightrainshowers" | "rainshowers" => Condition::Rain,
-            // Rain showers and thunder
-            "heavyrainshowersandthunder"
-            | "lightrainshowersandthunder"
-            | "rainshowersandthunder" => Condition::RainAndThunder,
-            // Rain and thunder
-            "heavyrainandthunder" | "lightrainandthunder" | "rainandthunder" => {
-                Condition::RainAndThunder
-            }
-            // Sleet
-            "heavysleet" | "lightsleet" | "sleet" => Condition::Sleet,
-            // Sleet showers
-            "heavysleetshowers" | "lightsleetshowers" | "sleetshowers" => Condition::Sleet,
-            // Sleet showers and thunder
-            "heavysleetshowersandthunder"
-            | "lightsleetshowersandthunder"
-            | "sleetshowersandthunder" => Condition::SleetAndThunder,
-            // Sleet and thunder
-            "heavysleetandthunder" | "lightsleetandthunder" | "sleetandthunder" => {
-                Condition::SleetAndThunder
-            }
-            // Snow
-            "heavysnow" | "lightsnow" | "snow" => Condition::Snow,
-            // Snow showers
-            "heavysnowshowers" | "lightsnowshowers" | "snowshowers" => Condition::Snow,
-            // Snow showers and thunder
-            "heavysnowshowersandthunder"
-            | "lightsnowshowersandthunder"
-            | "snowshowersandthunder" => Condition::SnowAndThunder,
-            // Snow and thunder
-            "heavysnowandthunder" | "lightsnowandthunder" | "snowandthunder" => {
-                Condition::SnowAndThunder
-            }
+            "rain" | "rainshowers" => Condition::Rain,
+            "rainandthunder" | "rainshowersandthunder" => Condition::RainAndThunder,
+            "sleet" | "sleetshowers" => Condition::Sleet,
+            "sleetandthunder" | "sleetshowersandthunder" => Condition::SleetAndThunder,
+            "snow" | "snowshowers" => Condition::Snow,
+            "snowandthunder" | "snowshowersandthunder" => Condition::SnowAndThunder,
             _ => return Err(Error::new(format!("unknown weather condition: {}", s))),
         };
 
