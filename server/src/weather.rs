@@ -246,6 +246,9 @@ impl FromStr for Condition {
             "sleetandthunder" | "sleetshowersandthunder" => Condition::SleetAndThunder,
             "snow" | "snowshowers" => Condition::Snow,
             "snowandthunder" | "snowshowersandthunder" => Condition::SnowAndThunder,
+            // Typing errors.
+            "ssleetshowersandthunder" => Condition::SleetAndThunder,
+            "ssnowshowersandthunder" => Condition::SnowAndThunder,
             _ => return Err(Error::new(format!("unknown weather condition: {}", s))),
         };
 
