@@ -244,6 +244,29 @@ impl Renderer {
             let offset = ctx.rng.gen_range(0..width);
             let cloud = spriten("cloud", n);
             self.draw_sprite(ctx, cloud, x + offset, y);
+            self.draw_thunder(ctx, data, x + offset, ctx.cloud_height + y, width - offset);
+        }
+    }
+
+    fn draw_thunder(&self, ctx: &mut RenderContext, data: &DataPoint, x: i64, y: i64, width: i64) {
+        if !data.condition.has_thunder() {
+            return;
+        }
+
+        let lightningset: &[usize] = match data.probability_of_thunder {
+            0.0..25.0 => &[0],
+            25.0..50.0 => &[1],
+            50.0..75.0 => &[2],
+            75.0.. => &[3],
+            _ => &[0],
+        };
+
+        let mut rng = rand::thread_rng();
+
+        for &n in lightningset {
+            let offset = rng.gen_range(0..width);
+            let lightning = spriten("lightning", n);
+            self.draw_sprite(ctx, lightning, x + offset, y);
         }
     }
 

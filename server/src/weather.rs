@@ -220,6 +220,13 @@ impl Condition {
     pub fn has_snow(&self) -> bool {
         matches!(self, Condition::Snow | Condition::SnowAndThunder)
     }
+
+    pub fn has_thunder(&self) -> bool {
+        matches!(
+            self,
+            Condition::RainAndThunder | Condition::SleetAndThunder | Condition::SnowAndThunder
+        )
+    }
 }
 
 impl FromStr for Condition {
