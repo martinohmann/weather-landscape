@@ -44,6 +44,8 @@ Apart from the features mentioned in the README of
   background).
 - **Metrics**: The server provides Prometheus metrics for monitoring. I use
   these to get alerted when the battery of the esp32 died, for example.
+- **Altitude**: In addition to latitude and longitude, the server also
+  optionally accepts an altitude for even more precise weather data.
 
 ## Setup
 
