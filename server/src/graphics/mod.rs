@@ -128,9 +128,9 @@ impl Renderer {
         let height = ctx.img.height() as i64;
 
         for (x, y, r) in make_smoke(angle, width, height) {
-            if rand::random::<f64>() * 1.3 > r {
-                let (dx, dy) = if rand::random::<f64>() * 1.2 < r {
-                    (ctx.rng.gen_range(-1..=1), ctx.rng.gen_range(-1..=1))
+            if ctx.rng.random::<f64>() * 1.3 > r {
+                let (dx, dy) = if ctx.rng.random::<f64>() * 1.2 < r {
+                    (ctx.rng.random_range(-1..=1), ctx.rng.random_range(-1..=1))
                 } else {
                     (0, 0)
                 };
@@ -242,7 +242,7 @@ impl Renderer {
         };
 
         for &n in cloudset {
-            let offset = ctx.rng.gen_range(0..width);
+            let offset = ctx.rng.random_range(0..width);
             let cloud = spriten("cloud", n);
             self.draw_sprite(ctx, cloud, x + offset, y);
         }
@@ -268,7 +268,7 @@ impl Renderer {
                 break;
             }
 
-            let x_start = x + ctx.rng.gen_range(3..fog_width / 2);
+            let x_start = x + ctx.rng.random_range(3..fog_width / 2);
             let y_start = y + y_off;
 
             for i in 0..=fog_width {
@@ -306,10 +306,10 @@ impl Renderer {
         for x in x..x + width {
             if let Some(&y_max) = ctx.temperature_graph.get(&x) {
                 for y in (y..y_max).step_by(2) {
-                    if rand::random::<f64>() > r {
+                    if ctx.rng.random::<f64>() > r {
                         let snow = match data.condition {
                             Condition::Snow => true,
-                            Condition::Sleet => rand::random(),
+                            Condition::Sleet => ctx.rng.random(),
                             _ => false,
                         };
 
@@ -523,7 +523,7 @@ impl RenderContext {
         let mut ctx = RenderContext {
             img,
             sun,
-            rng: rand::thread_rng(),
+            rng: rand::rng(),
             x_step,
             x_offset,
             y_offset,
