@@ -187,6 +187,14 @@ impl Renderer {
 
     fn draw_current_weather(&self, ctx: &mut RenderContext, weather: &DataPoint) {
         self.draw_house(ctx, weather);
+
+        // let mut offset = 175;
+        // for n in 1..=4 {
+        //     let lightning = spriten("lightning", n);
+        //     self.draw_sprite(ctx, lightning, offset, ctx.cloud_height + 4);
+        //     offset += 12 + n as i64;
+        // }
+
         self.draw_sky(ctx, weather, 0, ctx.x_offset);
         self.draw_temperature(ctx, weather.air_temperature, ctx.x_offset / 2);
     }
@@ -242,31 +250,41 @@ impl Renderer {
 
         for &n in cloudset {
             let offset = ctx.rng.gen_range(0..width);
+
+            if data.condition.has_thunder() {
+                self.draw_lightning(ctx, data, x + offset, ctx.cloud_height + y - 1, n);
+            }
+
             let cloud = spriten("cloud", n);
             self.draw_sprite(ctx, cloud, x + offset, y);
-            self.draw_thunder(ctx, data, x + offset, ctx.cloud_height + y, width - offset);
         }
     }
 
-    fn draw_thunder(&self, ctx: &mut RenderContext, data: &DataPoint, x: i64, y: i64, width: i64) {
-        if !data.condition.has_thunder() {
-            return;
-        }
-
-        let lightningset: &[usize] = match data.probability_of_thunder {
-            0.0..25.0 => &[0],
-            25.0..50.0 => &[1],
-            50.0..75.0 => &[2],
-            75.0.. => &[3],
-            _ => &[0],
+    fn draw_lightning(
+        &self,
+        ctx: &mut RenderContext,
+        data: &DataPoint,
+        x: i64,
+        y: i64,
+        cloud_n: usize,
+    ) {
+        let (lightning_set, lightning_offset): (&[usize], i64) = match cloud_n {
+            2 => (&[0], -16),
+            3 => (&[0, 1], -12),
+            5 => (&[0, 1, 2], -11),
+            10 => (&[1, 2, 3], -6),
+            30 => (&[1, 2, 3, 4], -2),
+            50 => (&[1, 2, 3, 4], 0),
+            _ => (&[0], 0),
         };
 
-        let mut rng = rand::thread_rng();
+        let probability = (data.probability_of_thunder / 100.0).clamp(0.0, 1.0);
 
-        for &n in lightningset {
-            let offset = rng.gen_range(0..width);
-            let lightning = spriten("lightning", n);
-            self.draw_sprite(ctx, lightning, x + offset, y);
+        if ctx.rng.gen_bool(probability) {
+            if let Some(&n) = lightning_set.choose(&mut ctx.rng) {
+                let lightning = spriten("lightning", n);
+                self.draw_sprite(ctx, lightning, x + lightning_offset, y);
+            }
         }
     }
 

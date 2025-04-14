@@ -84,6 +84,8 @@ pub(super) fn sprites() -> &'static HashMap<&'static str, Sprite> {
         load_sprite!(m, "lightning_01");
         load_sprite!(m, "lightning_02");
         load_sprite!(m, "lightning_03");
+        load_sprite!(m, "lightning_04");
+        load_sprite!(m, "lightning_05");
         m
     })
 }
