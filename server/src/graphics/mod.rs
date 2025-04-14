@@ -10,7 +10,7 @@ use crate::{
     app::Metrics,
     config::Config,
     sun::{Sun, SunPhase::*},
-    weather::{DataPoint, WeatherData},
+    weather::{Condition, DataPoint, WeatherData},
 };
 use epd_waveshare::epd2in9_v2::{HEIGHT, WIDTH};
 use imageproc::drawing::BresenhamLineIter;
@@ -225,7 +225,7 @@ impl Renderer {
     }
 
     fn draw_clouds(&self, ctx: &mut RenderContext, data: &DataPoint, x: i64, y: i64, width: i64) {
-        let cloudset: &[usize] = match data.cloud_area_fraction {
+        let cloud_set: &[usize] = match data.cloud_area_fraction {
             2.0..5.0 => &[2],
             5.0..10.0 => &[3, 2],
             10.0..20.0 => &[5, 3, 2],
@@ -240,12 +240,10 @@ impl Renderer {
             _ => &[],
         };
 
-        for &n in cloudset {
+        for &n in cloud_set {
             let offset = ctx.rng.gen_range(0..width);
 
-            if data.condition.has_thunder() {
-                self.draw_lightning(ctx, data, x + offset, ctx.cloud_height + y - 1, n);
-            }
+            self.draw_lightning(ctx, data, x + offset, ctx.cloud_height + y - 1, n);
 
             let cloud = spriten("cloud", n);
             self.draw_sprite(ctx, cloud, x + offset, y);
@@ -260,6 +258,11 @@ impl Renderer {
         y: i64,
         cloud_n: usize,
     ) {
+        if data.probability_of_thunder <= 0.0 {
+            // There's no thunderstorm that could produce lightnings.
+            return;
+        }
+
         let (lightning_set, lightning_offset): (&[usize], i64) = match cloud_n {
             2 => (&[0], -16),
             3 => (&[0, 1], -12),
@@ -274,8 +277,6 @@ impl Renderer {
             if let Some(&n) = lightning_set.choose(&mut ctx.rng) {
                 let lightning = spriten("lightning", n);
                 self.draw_sprite(ctx, lightning, x + lightning_offset, y);
-
-                self.metrics.object_counter("lightning").inc();
             }
         }
     }
@@ -322,37 +323,27 @@ impl Renderer {
         y: i64,
         width: i64,
     ) {
-        let DataPoint {
-            condition,
-            precipitation_amount,
-            ..
-        } = *data;
-
-        if precipitation_amount <= 0.0 {
+        if data.precipitation_amount <= 0.0 {
             // There's nothing that could fall from the sky.
             return;
         }
 
-        let (heaviness, factor) = if condition.has_snow() {
-            (5.0, 10.0)
-        } else if condition.has_sleet() {
-            (5.0, 15.0)
-        } else {
-            (5.0, 20.0)
+        let (heaviness, factor) = match data.condition {
+            Condition::Snow => (5.0, 10.0),
+            Condition::Sleet => (5.0, 15.0),
+            _ => (5.0, 20.0),
         };
 
-        let r = 1.0 - (precipitation_amount / heaviness) / factor;
+        let r = 1.0 - (data.precipitation_amount / heaviness) / factor;
 
         for x in x..x + width {
             if let Some(&y_max) = ctx.temperature_graph.get(&x) {
                 for y in (y..y_max).step_by(2) {
                     if rand::random::<f64>() > r {
-                        let snow = if condition.has_snow() {
-                            true
-                        } else if condition.has_sleet() {
-                            rand::random()
-                        } else {
-                            false
+                        let snow = match data.condition {
+                            Condition::Snow => true,
+                            Condition::Sleet => rand::random(),
+                            _ => false,
                         };
 
                         if snow {

@@ -205,30 +205,10 @@ pub enum Condition {
     Fog,
     PartlyCloudy,
     Rain,
-    RainAndThunder,
     Sleet,
-    SleetAndThunder,
     Snow,
-    SnowAndThunder,
     #[default]
     Unknown,
-}
-
-impl Condition {
-    pub fn has_sleet(&self) -> bool {
-        matches!(self, Condition::Sleet | Condition::SleetAndThunder)
-    }
-
-    pub fn has_snow(&self) -> bool {
-        matches!(self, Condition::Snow | Condition::SnowAndThunder)
-    }
-
-    pub fn has_thunder(&self) -> bool {
-        matches!(
-            self,
-            Condition::RainAndThunder | Condition::SleetAndThunder | Condition::SnowAndThunder
-        )
-    }
 }
 
 impl FromStr for Condition {
@@ -250,15 +230,14 @@ impl FromStr for Condition {
             "fair" => Condition::Fair,
             "fog" => Condition::Fog,
             "partlycloudy" => Condition::PartlyCloudy,
-            "rain" | "rainshowers" => Condition::Rain,
-            "rainandthunder" | "rainshowersandthunder" => Condition::RainAndThunder,
-            "sleet" | "sleetshowers" => Condition::Sleet,
-            "sleetandthunder" | "sleetshowersandthunder" => Condition::SleetAndThunder,
-            "snow" | "snowshowers" => Condition::Snow,
-            "snowandthunder" | "snowshowersandthunder" => Condition::SnowAndThunder,
+            "rain" | "rainshowers" | "rainandthunder" | "rainshowersandthunder" => Condition::Rain,
+            "sleet" | "sleetshowers" | "sleetandthunder" | "sleetshowersandthunder" => {
+                Condition::Sleet
+            }
+            "snow" | "snowshowers" | "snowandthunder" | "snowshowersandthunder" => Condition::Snow,
             // Typing errors.
-            "ssleetshowersandthunder" => Condition::SleetAndThunder,
-            "ssnowshowersandthunder" => Condition::SnowAndThunder,
+            "ssleetshowersandthunder" => Condition::Sleet,
+            "ssnowshowersandthunder" => Condition::Snow,
             _ => return Err(Error::new(format!("unknown weather condition: {}", s))),
         };
 
@@ -273,11 +252,8 @@ pub fn cause_havoc(weather: &mut WeatherData) {
     let conditions = &[
         Condition::Fog,
         Condition::Rain,
-        Condition::RainAndThunder,
         Condition::Sleet,
-        Condition::SleetAndThunder,
         Condition::Snow,
-        Condition::SnowAndThunder,
     ];
 
     let mut rng = rand::thread_rng();
