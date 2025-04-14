@@ -187,14 +187,6 @@ impl Renderer {
 
     fn draw_current_weather(&self, ctx: &mut RenderContext, weather: &DataPoint) {
         self.draw_house(ctx, weather);
-
-        // let mut offset = 175;
-        // for n in 1..=4 {
-        //     let lightning = spriten("lightning", n);
-        //     self.draw_sprite(ctx, lightning, offset, ctx.cloud_height + 4);
-        //     offset += 12 + n as i64;
-        // }
-
         self.draw_sky(ctx, weather, 0, ctx.x_offset);
         self.draw_temperature(ctx, weather.air_temperature, ctx.x_offset / 2);
     }
