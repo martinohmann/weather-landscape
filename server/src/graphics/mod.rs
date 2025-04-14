@@ -15,7 +15,7 @@ use crate::{
 use epd_waveshare::epd2in9_v2::{HEIGHT, WIDTH};
 use imageproc::drawing::BresenhamLineIter;
 use jiff::{SignedDuration, Timestamp, civil::time, tz::TimeZone};
-use rand::{Rng, seq::SliceRandom};
+use rand::{Rng, rngs::ThreadRng, seq::SliceRandom};
 use std::collections::BTreeMap;
 use std::f64::consts::PI;
 use tracing::debug;
@@ -127,12 +127,10 @@ impl Renderer {
         let width = ctx.img.width() as i64;
         let height = ctx.img.height() as i64;
 
-        let mut rng = rand::thread_rng();
-
         for (x, y, r) in make_smoke(angle, width, height) {
             if rand::random::<f64>() * 1.3 > r {
                 let (dx, dy) = if rand::random::<f64>() * 1.2 < r {
-                    (rng.gen_range(-1..=1), rng.gen_range(-1..=1))
+                    (ctx.rng.gen_range(-1..=1), ctx.rng.gen_range(-1..=1))
                 } else {
                     (0, 0)
                 };
@@ -243,10 +241,8 @@ impl Renderer {
             _ => &[],
         };
 
-        let mut rng = rand::thread_rng();
-
         for &n in cloudset {
-            let offset = rng.gen_range(0..width);
+            let offset = ctx.rng.gen_range(0..width);
             let cloud = spriten("cloud", n);
             self.draw_sprite(ctx, cloud, x + offset, y);
         }
@@ -264,7 +260,6 @@ impl Renderer {
         let fog_width = width / 2;
         let y_step = 6;
         let y_range = (y_max - y) / 2;
-        let mut rng = rand::thread_rng();
 
         for y_off in (0..y_range).step_by(y_step) {
             let percentage = (y_off as f64 / y_range as f64) * 100.0;
@@ -273,7 +268,7 @@ impl Renderer {
                 break;
             }
 
-            let x_start = x + rng.gen_range(3..fog_width / 2);
+            let x_start = x + ctx.rng.gen_range(3..fog_width / 2);
             let y_start = y + y_off;
 
             for i in 0..=fog_width {
@@ -370,8 +365,7 @@ impl Renderer {
             select_trees(data.wind_from_direction, direction, name, &mut trees);
         }
 
-        let mut rng = rand::thread_rng();
-        trees.shuffle(&mut rng);
+        trees.shuffle(&mut ctx.rng);
 
         let wind_speed = data.wind_speed;
 
@@ -396,7 +390,7 @@ impl Renderer {
         };
 
         let mut wind_indices = Vec::from_iter(wind_indices);
-        wind_indices.shuffle(&mut rng);
+        wind_indices.shuffle(&mut ctx.rng);
 
         let mut x_offset = x;
 
@@ -462,6 +456,7 @@ impl Renderer {
 struct RenderContext {
     img: Image,
     sun: Sun,
+    rng: ThreadRng,
     // X-offset for the weather graph.
     x_offset: i64,
     // X-step for a single forecast.
@@ -528,6 +523,7 @@ impl RenderContext {
         let mut ctx = RenderContext {
             img,
             sun,
+            rng: rand::thread_rng(),
             x_step,
             x_offset,
             y_offset,

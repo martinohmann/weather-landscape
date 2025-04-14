@@ -253,7 +253,7 @@ pub fn cause_havoc(weather: &mut WeatherData) {
     let mut rng = rand::thread_rng();
 
     let mut add_randomness = |data: &mut DataPoint| {
-        data.air_pressure_at_sea_level += rng.gen_range(-200.0f64..=200.0).clamp(200.0, 1200.0);
+        data.air_pressure_at_sea_level += rng.gen_range(-200.0f64..=200.0).clamp(0.0, 2000.0);
         data.air_temperature += rng.gen_range(-2.0..=2.0);
         data.cloud_area_fraction += rng.gen_range(-50.0f64..50.0).clamp(0.0, 100.0);
         data.condition = *conditions.choose(&mut rng).unwrap();
