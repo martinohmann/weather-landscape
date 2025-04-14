@@ -17,6 +17,7 @@ use imageproc::drawing::BresenhamLineIter;
 use jiff::{SignedDuration, Timestamp, civil::time, tz::TimeZone};
 use rand::{Rng, seq::SliceRandom};
 use std::collections::BTreeMap;
+use std::f64::consts::PI;
 use tracing::debug;
 
 /// Renders landscape images from weather data.
@@ -73,9 +74,72 @@ impl Renderer {
             sprite("house_00")
         };
 
-        let y = ctx.temperature_to_y(weather.air_temperature) - house.height() as i64;
+        let y = ctx.temperature_to_y(weather.air_temperature);
 
-        self.draw_sprite(ctx, house, 0, y);
+        self.draw_sprite(ctx, house, 0, y - house.height() as i64);
+        self.draw_smoke(ctx, weather, 21, ctx.img.height() as i64 - y + 22);
+    }
+
+    fn draw_smoke(&self, ctx: &mut RenderContext, weather: &DataPoint, x0: i64, y0: i64) {
+        const AIR_PRESSURE_MIN: f64 = 980.0;
+        const AIR_PRESSURE_MAX: f64 = 1040.0;
+        const SMOKE_R_PX: f64 = 30.0;
+        const SMOKE_SIZE: f64 = 60.0;
+
+        fn make_smoke(angle: f64, width: i64, height: i64) -> Vec<(i64, i64, f64)> {
+            let a = (PI * angle) / 180.0;
+            let r = SMOKE_R_PX;
+            let k = r * a.sin() / (r * a.cos()).sqrt();
+            let mut yp = 0i64;
+
+            let mut dots: Vec<(i64, i64, f64)> = Vec::new();
+
+            for x in 0..width {
+                let y = ((k * (x as f64).sqrt()) as i64).min(height);
+                let mut yi = yp;
+
+                loop {
+                    let rr = ((x * x + yi * yi) as f64).sqrt() / SMOKE_SIZE;
+                    dots.push((x, yi, rr));
+
+                    if rr > 1.0 {
+                        return dots;
+                    }
+
+                    yi += 1;
+
+                    if yi >= y {
+                        yp = y;
+                        break;
+                    }
+                }
+            }
+
+            dots
+        }
+
+        let angle = (((weather.air_pressure_at_sea_level - AIR_PRESSURE_MIN)
+            / (AIR_PRESSURE_MAX - AIR_PRESSURE_MIN))
+            * 85.0
+            + 5.0)
+            .clamp(0.0, 90.0);
+
+        let width = ctx.img.width() as i64;
+        let height = ctx.img.height() as i64;
+
+        let mut rng = rand::thread_rng();
+
+        for (x, y, r) in make_smoke(angle, width, height) {
+            if rand::random::<f64>() * 1.3 > r {
+                let (dx, dy) = if rand::random::<f64>() * 1.2 < r {
+                    (rng.gen_range(-1..=1), rng.gen_range(-1..=1))
+                } else {
+                    (0, 0)
+                };
+
+                ctx.img.draw_pixel(x0 + x + dx, height - (y0 + y) + dy);
+            }
+        }
     }
 
     fn draw_celestial_bodies(&self, ctx: &mut RenderContext) {
