@@ -263,12 +263,13 @@ impl Renderer {
             return;
         }
 
+        // The offsets shift the lightnings roughly centered below the cloud.
         let (lightning_set, lightning_offset): (&[usize], i64) = match cloud_n {
-            2 => (&[0], -16),
-            3 => (&[0, 1], -12),
-            5 => (&[0, 1, 2], -11),
-            10 => (&[1, 2, 3], -6),
-            30 => (&[1, 2, 3, 4], -2),
+            2 => (&[0], -18),
+            3 => (&[0, 1], -16),
+            5 => (&[0, 1, 2], -12),
+            10 => (&[1, 2, 3], -7),
+            30 => (&[1, 2, 3, 4], -3),
             50 => (&[1, 2, 3, 4], 0),
             _ => (&[0], 0),
         };

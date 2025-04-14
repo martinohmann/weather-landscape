@@ -166,7 +166,11 @@ impl DataPoint {
                     .map(|details| (details.precipitation_amount, details.probability_of_thunder))
                     .unwrap_or_default();
 
-                (condition, precipitation_amount, probability_of_thunder)
+                (
+                    condition,
+                    precipitation_amount,
+                    probability_of_thunder.map(|probability| (probability / 100.0).clamp(0.0, 1.0)),
+                )
             })
             .unwrap_or_default();
 
@@ -179,9 +183,7 @@ impl DataPoint {
             condition: condition.unwrap_or_default(),
             fog_area_fraction: details.fog_area_fraction.unwrap_or_default(),
             precipitation_amount: precipitation_amount.unwrap_or_default(),
-            probability_of_thunder: probability_of_thunder
-                .map(|p| (p / 100.0).clamp(0.0, 1.0))
-                .unwrap_or_default(),
+            probability_of_thunder: probability_of_thunder.unwrap_or_default(),
             timestamp,
             wind_from_direction: details.wind_from_direction.unwrap_or_default(),
             wind_speed: details.wind_speed.unwrap_or_default(),
