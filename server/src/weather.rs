@@ -179,7 +179,9 @@ impl DataPoint {
             condition: condition.unwrap_or_default(),
             fog_area_fraction: details.fog_area_fraction.unwrap_or_default(),
             precipitation_amount: precipitation_amount.unwrap_or_default(),
-            probability_of_thunder: probability_of_thunder.unwrap_or_default(),
+            probability_of_thunder: probability_of_thunder
+                .map(|p| (p / 100.0).clamp(0.0, 1.0))
+                .unwrap_or_default(),
             timestamp,
             wind_from_direction: details.wind_from_direction.unwrap_or_default(),
             wind_speed: details.wind_speed.unwrap_or_default(),
@@ -287,7 +289,7 @@ pub fn cause_havoc(weather: &mut WeatherData) {
         data.condition = *conditions.choose(&mut rng).unwrap();
         data.fog_area_fraction += rng.gen_range(-50.0f64..50.0).clamp(0.0, 100.0);
         data.precipitation_amount += rng.gen_range(-5.0f64..5.0).clamp(0.0, 50.0);
-        data.probability_of_thunder = rng.gen_range(0.0..100.0);
+        data.probability_of_thunder = rng.gen_range(0.0..1.0);
         data.wind_from_direction += rng.gen_range(-90.0f64..90.0).clamp(0.0, 360.0);
         data.wind_speed += rng.gen_range(-10.0f64..=10.0).max(0.0);
     };

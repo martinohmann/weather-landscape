@@ -270,12 +270,12 @@ impl Renderer {
             _ => (&[0], 0),
         };
 
-        let probability = (data.probability_of_thunder / 100.0).clamp(0.0, 1.0);
-
-        if ctx.rng.gen_bool(probability) {
+        if ctx.rng.gen_bool(data.probability_of_thunder) {
             if let Some(&n) = lightning_set.choose(&mut ctx.rng) {
                 let lightning = spriten("lightning", n);
                 self.draw_sprite(ctx, lightning, x + lightning_offset, y);
+
+                self.metrics.object_counter("lightning").inc();
             }
         }
     }
