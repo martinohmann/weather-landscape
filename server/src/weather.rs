@@ -137,6 +137,7 @@ impl WeatherData {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub struct DataPoint {
+    pub air_pressure_at_sea_level: f64,
     pub air_temperature: f64,
     pub cloud_area_fraction: f64,
     pub condition: Condition,
@@ -172,6 +173,7 @@ impl DataPoint {
         let details = &series.data.instant.details;
 
         Ok(DataPoint {
+            air_pressure_at_sea_level: details.air_pressure_at_sea_level.unwrap_or_default(),
             air_temperature: details.air_temperature.unwrap_or_default(),
             cloud_area_fraction: details.cloud_area_fraction.unwrap_or_default(),
             condition,
@@ -251,6 +253,7 @@ pub fn cause_havoc(weather: &mut WeatherData) {
     let mut rng = rand::thread_rng();
 
     let mut add_randomness = |data: &mut DataPoint| {
+        data.air_pressure_at_sea_level += rng.gen_range(-200.0f64..=200.0).clamp(200.0, 1200.0);
         data.air_temperature += rng.gen_range(-2.0..=2.0);
         data.cloud_area_fraction += rng.gen_range(-50.0f64..50.0).clamp(0.0, 100.0);
         data.condition = *conditions.choose(&mut rng).unwrap();
