@@ -259,7 +259,7 @@ impl Renderer {
         cloud_n: usize,
     ) {
         if data.probability_of_thunder <= 0.0 {
-            // There's no thunderstorm that could produce lightnings.
+            // There's no thunderstorm that could spit lightnings.
             return;
         }
 

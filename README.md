@@ -40,6 +40,8 @@ Apart from the features mentioned in the README of
   more lines there are, the heavier the fog.
 - **Sleet**: Apart from rain and snow, sleet is also shown as a mixture of rain
   drops and snow flakes.
+- **Thunderstorm**: Clouds spit lightnings if there's some probability of a
+  thunderstorm.
 - **Night mode**: At night time the colors are inverted (white scenery on black
   background).
 - **Metrics**: The server provides Prometheus metrics for monitoring. I use
