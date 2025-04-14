@@ -36,16 +36,6 @@ impl Sun {
         Timestamp::from_millisecond(phase_ms).expect("timestamp out of bounds")
     }
 
-    /// Returns `true` if `ts` is before the given [`SunPhase`] on the same day.
-    pub fn is_before(&self, ts: Timestamp, phase: SunPhase) -> bool {
-        ts < self.phase(ts, phase)
-    }
-
-    /// Returns `true` if `ts` is after the given [`SunPhase`] on the same day.
-    pub fn is_after(&self, ts: Timestamp, phase: SunPhase) -> bool {
-        self.phase(ts, phase) < ts
-    }
-
     /// Returns `true` if `ts` is between the [`SunPhase`]s given by `start` and `end`.
     ///
     /// The `end` [`SunPhase`] needs to happens after `start`, this method will always return
@@ -79,24 +69,6 @@ mod test {
         // Phase already happened on `date`.
         assert_eq!(sun.phase(date, Dawn), ts("2024-10-25T05:16:54.881Z"));
         assert_eq!(sun.next_phase(date, Dawn), ts("2024-10-26T05:18:36.694Z"));
-    }
-
-    #[test]
-    fn is_before_or_after() {
-        use SunPhase::*;
-
-        let sun = Sun::new(52.0, 13.0, None);
-        let date = ts("2024-10-25T16:14:00Z");
-
-        assert!(!sun.is_before(date, NightEnd));
-        assert!(!sun.is_before(date, Sunset));
-        assert!(sun.is_before(date, Dusk));
-        assert!(sun.is_before(date, Night));
-
-        assert!(sun.is_after(date, NightEnd));
-        assert!(sun.is_after(date, Sunset));
-        assert!(!sun.is_after(date, Dusk));
-        assert!(!sun.is_after(date, Night));
     }
 
     #[test]

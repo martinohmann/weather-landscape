@@ -52,8 +52,7 @@ impl Renderer {
             ctx.img.draw_pixel(x, y);
         }
 
-        let dark_outside =
-            ctx.sun.is_before(ctx.instant, Dawn) || ctx.sun.is_after(ctx.instant, Dusk);
+        let dark_outside = !ctx.sun.is_between(ctx.instant, Dawn, Dusk);
 
         if self.night_mode && dark_outside {
             ctx.img.invert_pixels();
