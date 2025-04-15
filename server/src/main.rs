@@ -2,6 +2,7 @@ mod app;
 mod config;
 mod error;
 mod graphics;
+mod preset;
 mod sun;
 mod weather;
 
@@ -13,19 +14,19 @@ use crate::{
 };
 use actix_web::{
     App, HttpResponse, HttpServer, get,
-    http::header::ContentType,
     middleware::Logger,
     web::{Data, Path, Query},
 };
 use actix_web_prom::PrometheusMetricsBuilder;
+use jiff::Zoned;
 use rand::{SeedableRng, rngs::StdRng};
 use serde::Deserialize;
+use tracing::{debug, error};
 
 #[derive(Deserialize, Clone, Debug)]
 struct ImageQuery {
     /// Adds a lot of randomness to the weather data to make the weather seem unpredictable.
-    #[serde(default)]
-    wreck_havoc: bool,
+    wreck_havoc: Option<bool>,
     /// A seed for the RNG to produce stable randomness.
     seed: Option<u64>,
 }
@@ -33,7 +34,7 @@ struct ImageQuery {
 impl ImageQuery {
     fn seed_rng(&self) -> StdRng {
         let seed = self.seed.unwrap_or_else(rand::random);
-        tracing::debug!(?seed, "seeding RNG used for image rendering");
+        debug!(?seed, "seeding RNG used for image rendering");
         StdRng::seed_from_u64(seed)
     }
 }
@@ -49,10 +50,14 @@ async fn image(
     format: Path<ImageFormat>,
     query: Query<ImageQuery>,
 ) -> actix_web::Result<HttpResponse> {
+    let settings = state.presets.get_settings_for(Zoned::now().datetime());
+
+    let wreck_havoc = query.wreck_havoc.or(settings.wreck_havoc).unwrap_or(false);
+
     let mut data = state.weather.get().await?;
     let mut rng = query.seed_rng();
 
-    if query.wreck_havoc {
+    if wreck_havoc {
         weather::wreck_havoc(&mut data, &mut rng);
     }
 
@@ -61,9 +66,11 @@ async fn image(
 
     state.metrics.image_counter(mime_type.essence_str()).inc();
 
-    Ok(HttpResponse::Ok()
-        .insert_header(ContentType(mime_type))
-        .body(body))
+    let mut resp = HttpResponse::Ok();
+
+    settings.configure_response(&mut resp);
+
+    Ok(resp.content_type(mime_type).body(body))
 }
 
 async fn run() -> Result<()> {
@@ -98,7 +105,7 @@ async fn main() {
     tracing_subscriber::fmt::init();
 
     if let Err(err) = run().await {
-        tracing::error!("{err}");
+        error!("{err}");
         std::process::exit(1);
     }
 }
