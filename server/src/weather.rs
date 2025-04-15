@@ -143,6 +143,7 @@ pub struct DataPoint {
     pub condition: Condition,
     pub fog_area_fraction: f64,
     pub precipitation_amount: f64,
+    pub probability_of_thunder: f64,
     pub timestamp: Timestamp,
     pub wind_from_direction: f64,
     pub wind_speed: f64,
@@ -152,22 +153,25 @@ impl DataPoint {
     fn from_time_series(series: &TimeSeries) -> Result<DataPoint> {
         let timestamp = Timestamp::from_second(series.time.timestamp())?;
 
-        let precipitation_amount = series
+        let (condition, precipitation_amount, probability_of_thunder) = series
             .data
             .next_1_hours
             .as_ref()
-            .and_then(|next| {
-                next.details
-                    .as_ref()
-                    .and_then(|details| details.precipitation_amount)
-            })
-            .unwrap_or_default();
+            .map(|next| {
+                let condition = Condition::from_str(next.summary.symbol_code).ok();
 
-        let condition = series
-            .data
-            .next_1_hours
-            .as_ref()
-            .and_then(|next| Condition::from_str(next.summary.symbol_code).ok())
+                let (precipitation_amount, probability_of_thunder) = next
+                    .details
+                    .as_ref()
+                    .map(|details| (details.precipitation_amount, details.probability_of_thunder))
+                    .unwrap_or_default();
+
+                (
+                    condition,
+                    precipitation_amount,
+                    probability_of_thunder.map(|probability| (probability / 100.0).clamp(0.0, 1.0)),
+                )
+            })
             .unwrap_or_default();
 
         let details = &series.data.instant.details;
@@ -176,9 +180,10 @@ impl DataPoint {
             air_pressure_at_sea_level: details.air_pressure_at_sea_level.unwrap_or_default(),
             air_temperature: details.air_temperature.unwrap_or_default(),
             cloud_area_fraction: details.cloud_area_fraction.unwrap_or_default(),
-            condition,
+            condition: condition.unwrap_or_default(),
             fog_area_fraction: details.fog_area_fraction.unwrap_or_default(),
-            precipitation_amount,
+            precipitation_amount: precipitation_amount.unwrap_or_default(),
+            probability_of_thunder: probability_of_thunder.unwrap_or_default(),
             timestamp,
             wind_from_direction: details.wind_from_direction.unwrap_or_default(),
             wind_speed: details.wind_speed.unwrap_or_default(),
@@ -212,27 +217,30 @@ impl FromStr for Condition {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let condition = match s {
-            "clearsky" | "clearsky_day" | "clearsky_night" => Condition::ClearSky,
-            "cloudy" | "cloudy_day" | "cloudy_night" => Condition::Cloudy,
-            "fair" | "fair_day" | "fair_night" => Condition::Fair,
-            "fog" | "fog_day" | "fog_night" => Condition::Fog,
-            "partlycloudy" | "partlycloudy_day" | "partlycloudy_night" => Condition::PartlyCloudy,
-            condition => {
-                // @TODO(mohmann): There are a lot more specific rain, sleet and snow condition,
-                // but we're not enumerating them explicitly for now.
-                //
-                // https://github.com/metno/weathericons/tree/main/weather
-                if condition.contains("rain") {
-                    Condition::Rain
-                } else if condition.contains("sleet") {
-                    Condition::Sleet
-                } else if condition.contains("snow") {
-                    Condition::Snow
-                } else {
-                    return Err(Error::new("unknown weather condition"));
-                }
+        // We don't distiguish between day and night conditions, and we also don't care about
+        // "light" and "heavy" for now.
+        let normalized = s
+            .trim_end_matches("_day")
+            .trim_end_matches("_night")
+            .trim_start_matches("light")
+            .trim_start_matches("heavy");
+
+        // Conditions from https://github.com/metno/weathericons/tree/main/weather
+        let condition = match normalized {
+            "clearsky" => Condition::ClearSky,
+            "cloudy" => Condition::Cloudy,
+            "fair" => Condition::Fair,
+            "fog" => Condition::Fog,
+            "partlycloudy" => Condition::PartlyCloudy,
+            "rain" | "rainshowers" | "rainandthunder" | "rainshowersandthunder" => Condition::Rain,
+            "sleet" | "sleetshowers" | "sleetandthunder" | "sleetshowersandthunder" => {
+                Condition::Sleet
             }
+            "snow" | "snowshowers" | "snowandthunder" | "snowshowersandthunder" => Condition::Snow,
+            // Typing errors.
+            "ssleetshowersandthunder" => Condition::Sleet,
+            "ssnowshowersandthunder" => Condition::Snow,
+            _ => return Err(Error::new(format!("unknown weather condition: {}", s))),
         };
 
         Ok(condition)
@@ -245,9 +253,9 @@ pub fn cause_havoc(weather: &mut WeatherData) {
 
     let conditions = &[
         Condition::Fog,
-        Condition::Snow,
-        Condition::Sleet,
         Condition::Rain,
+        Condition::Sleet,
+        Condition::Snow,
     ];
 
     let mut rng = rand::thread_rng();
@@ -259,6 +267,7 @@ pub fn cause_havoc(weather: &mut WeatherData) {
         data.condition = *conditions.choose(&mut rng).unwrap();
         data.fog_area_fraction += rng.gen_range(-50.0f64..50.0).clamp(0.0, 100.0);
         data.precipitation_amount += rng.gen_range(-5.0f64..5.0).clamp(0.0, 50.0);
+        data.probability_of_thunder = rng.gen_range(0.0..1.0);
         data.wind_from_direction += rng.gen_range(-90.0f64..90.0).clamp(0.0, 360.0);
         data.wind_speed += rng.gen_range(-10.0f64..=10.0).max(0.0);
     };

@@ -225,7 +225,7 @@ impl Renderer {
     }
 
     fn draw_clouds(&self, ctx: &mut RenderContext, data: &DataPoint, x: i64, y: i64, width: i64) {
-        let cloudset: &[usize] = match data.cloud_area_fraction {
+        let cloud_set: &[usize] = match data.cloud_area_fraction {
             2.0..5.0 => &[2],
             5.0..10.0 => &[3, 2],
             10.0..20.0 => &[5, 3, 2],
@@ -240,10 +240,45 @@ impl Renderer {
             _ => &[],
         };
 
-        for &n in cloudset {
+        for &n in cloud_set {
             let offset = ctx.rng.gen_range(0..width);
+
+            self.draw_lightning(ctx, data, x + offset, ctx.cloud_height + y - 1, n);
+
             let cloud = spriten("cloud", n);
             self.draw_sprite(ctx, cloud, x + offset, y);
+        }
+    }
+
+    fn draw_lightning(
+        &self,
+        ctx: &mut RenderContext,
+        data: &DataPoint,
+        x: i64,
+        y: i64,
+        cloud_n: usize,
+    ) {
+        if data.probability_of_thunder <= 0.0 {
+            // There's no thunderstorm that could spit lightnings.
+            return;
+        }
+
+        // The offsets shift the lightnings roughly centered below the cloud.
+        let (lightning_set, lightning_offset): (&[usize], i64) = match cloud_n {
+            2 => (&[0], -18),
+            3 => (&[0, 1], -16),
+            5 => (&[0, 1, 2], -12),
+            10 => (&[1, 2, 3], -7),
+            30 => (&[1, 2, 3, 4], -3),
+            50 => (&[1, 2, 3, 4], 0),
+            _ => (&[0], 0),
+        };
+
+        if ctx.rng.gen_bool(data.probability_of_thunder) {
+            if let Some(&n) = lightning_set.choose(&mut ctx.rng) {
+                let lightning = spriten("lightning", n);
+                self.draw_sprite(ctx, lightning, x + lightning_offset, y);
+            }
         }
     }
 
