@@ -18,12 +18,25 @@ use actix_web::{
     web::{Data, Path, Query},
 };
 use actix_web_prom::PrometheusMetricsBuilder;
+use rand::{SeedableRng, rngs::StdRng};
 use serde::Deserialize;
 
-#[derive(Deserialize, Debug)]
-struct ImageRequest {
+#[derive(Deserialize, Clone, Debug)]
+struct ImageQuery {
+    /// Adds a lot of randomness to the weather data to make the weather seem unpredictable.
     #[serde(default)]
-    cause_havoc: bool,
+    wreck_havoc: bool,
+    /// A seed for the RNG to produce stable randomness.
+    seed: Option<u64>,
+}
+
+impl ImageQuery {
+    fn create_rng(&self) -> StdRng {
+        match self.seed {
+            Some(seed) => StdRng::seed_from_u64(seed),
+            None => StdRng::from_entropy(),
+        }
+    }
 }
 
 #[get("/healthz")]
@@ -35,15 +48,16 @@ async fn healthz() -> &'static str {
 async fn image(
     state: Data<AppState>,
     format: Path<ImageFormat>,
-    query: Query<ImageRequest>,
+    query: Query<ImageQuery>,
 ) -> actix_web::Result<HttpResponse> {
     let mut data = state.weather.get().await?;
+    let mut rng = query.create_rng();
 
-    if query.cause_havoc {
-        weather::cause_havoc(&mut data);
+    if query.wreck_havoc {
+        weather::wreck_havoc(&mut data, &mut rng);
     }
 
-    let image = state.renderer.render(&data);
+    let image = state.renderer.render(&data, rng);
     let (body, mime_type) = image.encode(format.into_inner())?;
 
     state.metrics.image_counter(mime_type.essence_str()).inc();

@@ -15,7 +15,7 @@ use crate::{
 use epd_waveshare::epd2in9_v2::{HEIGHT, WIDTH};
 use imageproc::drawing::BresenhamLineIter;
 use jiff::{SignedDuration, Timestamp, civil::time, tz::TimeZone};
-use rand::{Rng, rngs::ThreadRng, seq::SliceRandom};
+use rand::{Rng, rngs::StdRng, seq::SliceRandom};
 use std::collections::BTreeMap;
 use std::f64::consts::PI;
 use tracing::debug;
@@ -37,8 +37,8 @@ impl Renderer {
     }
 
     /// Renders the weather data into a landscape image.
-    pub fn render(&self, data: &WeatherData) -> Image {
-        let mut ctx = RenderContext::new(data);
+    pub fn render(&self, data: &WeatherData, rng: StdRng) -> Image {
+        let mut ctx = RenderContext::new(data, rng);
 
         debug!(?data, "rendering image for weather data");
 
@@ -127,8 +127,8 @@ impl Renderer {
         let height = ctx.img.height() as i64;
 
         for (x, y, r) in make_smoke(angle, width, height) {
-            if rand::random::<f64>() * 1.3 > r {
-                let (dx, dy) = if rand::random::<f64>() * 1.2 < r {
+            if ctx.rng.r#gen::<f64>() * 1.3 > r {
+                let (dx, dy) = if ctx.rng.r#gen::<f64>() * 1.2 < r {
                     (ctx.rng.gen_range(-1..=1), ctx.rng.gen_range(-1..=1))
                 } else {
                     (0, 0)
@@ -340,10 +340,10 @@ impl Renderer {
         for x in x..x + width {
             if let Some(&y_max) = ctx.temperature_graph.get(&x) {
                 for y in (y..y_max).step_by(2) {
-                    if rand::random::<f64>() > r {
+                    if ctx.rng.r#gen::<f64>() > r {
                         let snow = match data.condition {
                             Condition::Snow => true,
-                            Condition::Sleet => rand::random(),
+                            Condition::Sleet => ctx.rng.r#gen(),
                             _ => false,
                         };
 
@@ -490,7 +490,7 @@ impl Renderer {
 struct RenderContext {
     img: Image,
     sun: Sun,
-    rng: ThreadRng,
+    rng: StdRng,
     // X-offset for the weather graph.
     x_offset: i64,
     // X-step for a single forecast.
@@ -512,7 +512,7 @@ struct RenderContext {
 }
 
 impl RenderContext {
-    fn new(data: &WeatherData) -> Self {
+    fn new(data: &WeatherData, rng: StdRng) -> Self {
         // We'll flip width and height here. The e-paper display works in portrait mode but we'd like
         // to draw the image in landscape mode, because it's more intiutive. The rendered image gets
         // rotated by 90 degrees before serving it to the esp32.
@@ -557,7 +557,7 @@ impl RenderContext {
         let mut ctx = RenderContext {
             img,
             sun,
-            rng: rand::thread_rng(),
+            rng,
             x_step,
             x_offset,
             y_offset,

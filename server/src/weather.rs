@@ -4,7 +4,7 @@ use monsoon::{
     Monsoon, Params, Response,
     body::{Body, TimeSeries},
 };
-use rand::{Rng, seq::SliceRandom};
+use rand::{Rng, rngs::StdRng, seq::SliceRandom};
 use std::time::Duration;
 use std::{str::FromStr, sync::Arc};
 use tokio::sync::Mutex;
@@ -247,8 +247,10 @@ impl FromStr for Condition {
     }
 }
 
-/// Adds a lot of randomness to the weather data. This is useful for testing.
-pub fn cause_havoc(weather: &mut WeatherData) {
+/// Adds a lot of randomness to the weather data to make the weather seem unpredictable.
+///
+/// This is useful for testing.
+pub fn wreck_havoc(weather: &mut WeatherData, rng: &mut StdRng) {
     info!("causing havoc in the weather data");
 
     let conditions = &[
@@ -258,13 +260,11 @@ pub fn cause_havoc(weather: &mut WeatherData) {
         Condition::Snow,
     ];
 
-    let mut rng = rand::thread_rng();
-
     let mut add_randomness = |data: &mut DataPoint| {
         data.air_pressure_at_sea_level += rng.gen_range(-200.0f64..=200.0).clamp(0.0, 2000.0);
         data.air_temperature += rng.gen_range(-2.0..=2.0);
         data.cloud_area_fraction += rng.gen_range(-50.0f64..50.0).clamp(0.0, 100.0);
-        data.condition = *conditions.choose(&mut rng).unwrap();
+        data.condition = *conditions.choose(rng).unwrap();
         data.fog_area_fraction += rng.gen_range(-50.0f64..50.0).clamp(0.0, 100.0);
         data.precipitation_amount += rng.gen_range(-5.0f64..5.0).clamp(0.0, 50.0);
         data.probability_of_thunder = rng.gen_range(0.0..1.0);
