@@ -48,6 +48,13 @@ Apart from the features mentioned in the README of
   these to get alerted when the battery of the esp32 died, for example.
 - **Altitude**: In addition to latitude and longitude, the server also
   optionally accepts an altitude for even more precise weather data.
+- **Randomness control**: The `/image.{format}` endpoint supports the boolean
+  query parameter `wreck_havoc` to add a lot of randomness to the weather data
+  to make it seem unpredictable. This turned out to be really useful for
+  testing. Additionally, the image endpoint accepts an optional `seed` query
+  parameter (`u64`) which allows passing a seed to the RNG to make the
+  randomness more predictable. If absent, the RNG used to render the image is
+  seeded from the system entropy source.
 
 ## Setup
 
@@ -62,6 +69,12 @@ Apart from the features mentioned in the README of
 cp config.example.toml config.toml
 cargo run
 ```
+
+Visit `http://localhost:8080/image.{format}` to grab the rendered image of the
+current weather.
+
+Available `{format}` values are: `epd` (binary data, meant to be used by the
+esp32), `png`, `gif` and `bmp`.
 
 ### `esp32` Setup
 
