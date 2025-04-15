@@ -1,6 +1,7 @@
-use crate::error::Result;
+use crate::{error::Result, preset::Moment};
 use config::{Environment, File};
 use serde::Deserialize;
+use std::collections::BTreeMap;
 use tracing::debug;
 
 /// Application configuration sourced from env and/or config file.
@@ -11,6 +12,18 @@ pub struct Config {
     pub altitude: Option<i32>,
     #[serde(default)]
     pub disable_night_mode: bool,
+    #[serde(default)]
+    pub presets: BTreeMap<String, PresetConfig>,
+}
+
+/// Configuration of a time-based preset.
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct PresetConfig {
+    pub enabled: bool,
+    pub from: Moment,
+    pub to: Moment,
+    pub wreck_havoc: Option<bool>,
+    pub esp_deep_sleep_seconds: Option<u64>,
 }
 
 impl Config {
@@ -20,7 +33,7 @@ impl Config {
             // Configuration from `config.toml`.
             .add_source(File::with_name("config").required(false))
             // Config from environment variables.
-            .add_source(Environment::default().separator("_"))
+            .add_source(Environment::default().separator("__"))
             .build()?
             .try_deserialize()?;
 

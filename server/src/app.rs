@@ -1,4 +1,4 @@
-use crate::{config::Config, error::Result, graphics::Renderer, weather::Weather};
+use crate::{config::Config, error::Result, graphics::Renderer, preset::Presets, weather::Weather};
 use prometheus::{
     IntCounterVec, Registry,
     core::{AtomicU64, GenericCounter},
@@ -9,6 +9,7 @@ use prometheus::{
 #[derive(Clone)]
 pub struct AppState {
     pub metrics: Metrics,
+    pub presets: Presets,
     pub renderer: Renderer,
     pub weather: Weather,
 }
@@ -18,9 +19,11 @@ impl AppState {
     pub fn new(config: &Config, metrics: Metrics) -> Result<AppState> {
         let weather = Weather::new(config.latitude, config.longitude, config.altitude)?;
         let renderer = Renderer::new(config, metrics.clone());
+        let presets = Presets::new(&config.presets)?;
 
         Ok(AppState {
             metrics,
+            presets,
             renderer,
             weather,
         })
