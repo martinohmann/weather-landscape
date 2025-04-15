@@ -4,7 +4,7 @@ use monsoon::{
     Monsoon, Params, Response,
     body::{Body, TimeSeries},
 };
-use rand::{Rng, rngs::StdRng, seq::SliceRandom};
+use rand::{Rng, seq::SliceRandom};
 use std::time::Duration;
 use std::{str::FromStr, sync::Arc};
 use tokio::sync::Mutex;
@@ -189,6 +189,25 @@ impl DataPoint {
             wind_speed: details.wind_speed.unwrap_or_default(),
         })
     }
+
+    fn add_randomness<R: Rng>(&mut self, rng: &mut R) {
+        const CONDITIONS: &[Condition] = &[
+            Condition::Fog,
+            Condition::Rain,
+            Condition::Sleet,
+            Condition::Snow,
+        ];
+
+        self.air_pressure_at_sea_level += rng.gen_range(-200.0f64..=200.0).clamp(0.0, 2000.0);
+        self.air_temperature += rng.gen_range(-2.0..=2.0);
+        self.cloud_area_fraction += rng.gen_range(-50.0f64..50.0).clamp(0.0, 100.0);
+        self.condition = CONDITIONS.choose(rng).copied().unwrap();
+        self.fog_area_fraction += rng.gen_range(-50.0f64..50.0).clamp(0.0, 100.0);
+        self.precipitation_amount += rng.gen_range(-5.0f64..5.0).clamp(0.0, 50.0);
+        self.probability_of_thunder = rng.gen_range(0.0..1.0);
+        self.wind_from_direction += rng.gen_range(-90.0f64..90.0).clamp(0.0, 360.0);
+        self.wind_speed += rng.gen_range(-10.0f64..=10.0).max(0.0);
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -250,31 +269,12 @@ impl FromStr for Condition {
 /// Adds a lot of randomness to the weather data to make the weather seem unpredictable.
 ///
 /// This is useful for testing.
-pub fn wreck_havoc(weather: &mut WeatherData, rng: &mut StdRng) {
-    info!("causing havoc in the weather data");
+pub fn wreck_havoc<R: Rng>(weather: &mut WeatherData, rng: &mut R) {
+    info!("wrecking havoc in the weather data");
 
-    let conditions = &[
-        Condition::Fog,
-        Condition::Rain,
-        Condition::Sleet,
-        Condition::Snow,
-    ];
-
-    let mut add_randomness = |data: &mut DataPoint| {
-        data.air_pressure_at_sea_level += rng.gen_range(-200.0f64..=200.0).clamp(0.0, 2000.0);
-        data.air_temperature += rng.gen_range(-2.0..=2.0);
-        data.cloud_area_fraction += rng.gen_range(-50.0f64..50.0).clamp(0.0, 100.0);
-        data.condition = *conditions.choose(rng).unwrap();
-        data.fog_area_fraction += rng.gen_range(-50.0f64..50.0).clamp(0.0, 100.0);
-        data.precipitation_amount += rng.gen_range(-5.0f64..5.0).clamp(0.0, 50.0);
-        data.probability_of_thunder = rng.gen_range(0.0..1.0);
-        data.wind_from_direction += rng.gen_range(-90.0f64..90.0).clamp(0.0, 360.0);
-        data.wind_speed += rng.gen_range(-10.0f64..=10.0).max(0.0);
-    };
-
-    add_randomness(&mut weather.current);
+    weather.current.add_randomness(rng);
 
     for data in &mut weather.forecasts {
-        add_randomness(data);
+        data.add_randomness(rng);
     }
 }

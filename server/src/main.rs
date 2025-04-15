@@ -31,11 +31,10 @@ struct ImageQuery {
 }
 
 impl ImageQuery {
-    fn create_rng(&self) -> StdRng {
-        match self.seed {
-            Some(seed) => StdRng::seed_from_u64(seed),
-            None => StdRng::from_entropy(),
-        }
+    fn seed_rng(&self) -> StdRng {
+        let seed = self.seed.unwrap_or_else(rand::random);
+        tracing::debug!(?seed, "seeding RNG used for image rendering");
+        StdRng::seed_from_u64(seed)
     }
 }
 
@@ -51,7 +50,7 @@ async fn image(
     query: Query<ImageQuery>,
 ) -> actix_web::Result<HttpResponse> {
     let mut data = state.weather.get().await?;
-    let mut rng = query.create_rng();
+    let mut rng = query.seed_rng();
 
     if query.wreck_havoc {
         weather::wreck_havoc(&mut data, &mut rng);
