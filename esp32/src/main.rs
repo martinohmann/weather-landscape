@@ -40,18 +40,21 @@ fn main() -> Result<()> {
     let sysloop = EspSystemEventLoop::take()?;
     let nvs = EspDefaultNvsPartition::take()?;
 
-    if let Err(err) = run(peripherals, sysloop, nvs) {
+    let deep_sleep_seconds = run(peripherals, sysloop, nvs).unwrap_or_else(|err| {
         error!("{err}");
-    }
+        None
+    });
 
-    enter_deep_sleep(Duration::from_secs(CONFIG.deep_sleep_seconds));
+    let sleep_time = Duration::from_secs(deep_sleep_seconds.unwrap_or(CONFIG.deep_sleep_seconds));
+
+    enter_deep_sleep(sleep_time);
 }
 
 fn run(
     peripherals: Peripherals,
     sysloop: EspSystemEventLoop,
     nvs: EspDefaultNvsPartition,
-) -> Result<()> {
+) -> Result<Option<u64>> {
     let wifi = wifi::connect(
         CONFIG.wifi_ssid,
         CONFIG.wifi_psk,
@@ -61,7 +64,7 @@ fn run(
     )
     .context("Could not connect to WiFi network")?;
 
-    let image_data = http::fetch_image_data(CONFIG.data_url)?;
+    let resp = http::fetch_data(CONFIG.data_url)?;
 
     info!("Disconnecting WiFi");
     drop(wifi);
@@ -91,7 +94,7 @@ fn run(
     info!("E-Ink display init completed!");
 
     info!("Drawing image");
-    epd.update_and_display_frame(&mut spi, &image_data, &mut delay)?;
+    epd.update_and_display_frame(&mut spi, &resp.image_data, &mut delay)?;
 
     #[allow(clippy::absurd_extreme_comparisons)]
     if CONFIG.clear_after_seconds > 0 {
@@ -104,7 +107,7 @@ fn run(
     }
 
     epd.sleep(&mut spi, &mut delay)?;
-    Ok(())
+    Ok(resp.deep_sleep_seconds)
 }
 
 fn enter_deep_sleep(sleep_time: Duration) -> ! {
