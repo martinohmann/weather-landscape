@@ -18,3 +18,41 @@ altitude = 0
 # If you don't like inverted colors at night, you can disable night mode by
 # setting this to `true`.
 disable_night_mode = false
+
+# Configurable time-based presets.
+#
+# When an image request falls within one of the configured schedules, the
+# server will perform certain actions like returning additional data to the ESP
+# in HTTP headers to configure its behaviour.
+#
+# If multiple presets match at a given time, their settings are merged in the
+# order they are defined.
+#
+#   [presets.preset-name]
+#   # Enable or disable the preset.
+#   enabled = true
+#
+#   # Start moment of the schedule. Can be a datetime, date or time.
+#   from = "20:00"
+#
+#   # End moment of the schedule. Can be a datetime, date or time.
+#   to = "05:00"
+#
+#   # Send the number of seconds the ESP should sleep after it requested a new
+#   # image. This field is optional. If unset, the ESP will sleep for its
+#   # configured default value.
+#   esp_deep_sleep_seconds = 600
+#
+#   # Wether to add a lot of randomness into the weather data by default. This
+#   # field is optional.
+#   wreck_havoc = true
+#
+# The following preset instructs the ESP to only ask for a new image every 60
+# minutes to save battery during night time when people would rarely look at it
+# anyways:
+#
+#   [presets.night-time]
+#   enabled = true
+#   from = "22:00"
+#   to = "06:00"
+#   esp_deep_sleep_seconds = 3600
