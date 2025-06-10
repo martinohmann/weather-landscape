@@ -9,7 +9,7 @@ edition = "2024"
 actix-web = "4.9.0"
 epd-waveshare = { git = "https://github.com/caemor/epd-waveshare", rev = "1244f035", features = ["graphics"] }
 mime = "0.3.17"
-rand = "0.8.5"
+rand = "0.9.1"
 image = "0.25.2"
 thiserror = "1.0.64"
 embedded-graphics = "0.8.1"

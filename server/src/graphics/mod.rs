@@ -15,7 +15,11 @@ use crate::{
 use epd_waveshare::epd2in9_v2::{HEIGHT, WIDTH};
 use imageproc::drawing::BresenhamLineIter;
 use jiff::{SignedDuration, Timestamp, civil::time, tz::TimeZone};
-use rand::{Rng, rngs::StdRng, seq::SliceRandom};
+use rand::{
+    Rng,
+    rngs::StdRng,
+    seq::{IndexedRandom, SliceRandom},
+};
 use std::collections::BTreeMap;
 use std::f64::consts::PI;
 use tracing::debug;
@@ -127,9 +131,9 @@ impl Renderer {
         let height = ctx.img.height() as i64;
 
         for (x, y, r) in make_smoke(angle, width, height) {
-            if ctx.rng.r#gen::<f64>() * 1.3 > r {
-                let (dx, dy) = if ctx.rng.r#gen::<f64>() * 1.2 < r {
-                    (ctx.rng.gen_range(-1..=1), ctx.rng.gen_range(-1..=1))
+            if ctx.rng.random::<f64>() * 1.3 > r {
+                let (dx, dy) = if ctx.rng.random::<f64>() * 1.2 < r {
+                    (ctx.rng.random_range(-1..=1), ctx.rng.random_range(-1..=1))
                 } else {
                     (0, 0)
                 };
@@ -241,7 +245,7 @@ impl Renderer {
         };
 
         for &n in cloud_set {
-            let offset = ctx.rng.gen_range(0..width);
+            let offset = ctx.rng.random_range(0..width);
 
             self.draw_lightning(ctx, data, x + offset, ctx.cloud_height + y - 1, n);
 
@@ -274,7 +278,7 @@ impl Renderer {
             _ => (&[0], 0),
         };
 
-        if ctx.rng.gen_bool(data.probability_of_thunder) {
+        if ctx.rng.random_bool(data.probability_of_thunder) {
             if let Some(&n) = lightning_set.choose(&mut ctx.rng) {
                 let lightning = spriten("lightning", n);
                 self.draw_sprite(ctx, lightning, x + lightning_offset, y);
@@ -302,7 +306,7 @@ impl Renderer {
                 break;
             }
 
-            let x_start = x + ctx.rng.gen_range(3..fog_width / 2);
+            let x_start = x + ctx.rng.random_range(3..fog_width / 2);
             let y_start = y + y_off;
 
             for i in 0..=fog_width {
@@ -340,10 +344,10 @@ impl Renderer {
         for x in x..x + width {
             if let Some(&y_max) = ctx.temperature_graph.get(&x) {
                 for y in (y..y_max).step_by(2) {
-                    if ctx.rng.r#gen::<f64>() > r {
+                    if ctx.rng.random::<f64>() > r {
                         let snow = match data.condition {
                             Condition::Snow => true,
-                            Condition::Sleet => ctx.rng.r#gen(),
+                            Condition::Sleet => ctx.rng.random(),
                             _ => false,
                         };
 
