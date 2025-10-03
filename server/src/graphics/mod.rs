@@ -278,12 +278,11 @@ impl Renderer {
             _ => (&[0], 0),
         };
 
-        if ctx.rng.random_bool(data.probability_of_thunder) {
-            if let Some(&n) = lightning_set.choose(&mut ctx.rng) {
+        if ctx.rng.random_bool(data.probability_of_thunder)
+            && let Some(&n) = lightning_set.choose(&mut ctx.rng) {
                 let lightning = spriten("lightning", n);
                 self.draw_sprite(ctx, lightning, x + lightning_offset, y);
             }
-        }
     }
 
     fn draw_fog(&self, ctx: &mut RenderContext, data: &DataPoint, x: i64, y: i64, width: i64) {
