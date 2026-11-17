@@ -2,7 +2,6 @@ use anyhow::{Result, bail};
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
     hal::modem::Modem,
-    hal::peripheral::Peripheral,
     nvs::EspDefaultNvsPartition,
     wifi::{AuthMethod, BlockingWifi, ClientConfiguration, Configuration, EspWifi},
 };
@@ -11,7 +10,7 @@ use log::info;
 pub fn connect(
     ssid: &str,
     password: &str,
-    modem: impl Peripheral<P = Modem> + 'static,
+    modem: Modem<'static>,
     sysloop: EspSystemEventLoop,
     nvs: EspDefaultNvsPartition,
 ) -> Result<BlockingWifi<EspWifi<'static>>> {
