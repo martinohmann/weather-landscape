@@ -10,8 +10,8 @@ use epd_waveshare::{
 };
 use esp_idf_hal::{
     delay::Ets,
-    gpio::{AnyIOPin, Gpio2, PinDriver},
-    prelude::*,
+    gpio::{AnyIOPin, Gpio2, PinDriver, Pull},
+    peripherals::Peripherals,
     spi::{SpiDeviceDriver, SpiDriverConfig, config::Config as SpiConfig},
 };
 use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition};
@@ -82,7 +82,7 @@ fn run(
     )?;
 
     let _cs = PinDriver::output(peripherals.pins.gpio5)?;
-    let busy_in = PinDriver::input(peripherals.pins.gpio14)?;
+    let busy_in = PinDriver::input(peripherals.pins.gpio14, Pull::Floating)?;
     let dc = PinDriver::output(peripherals.pins.gpio13)?;
     let rst = PinDriver::output(peripherals.pins.gpio12)?;
     let mut delay = Ets;
