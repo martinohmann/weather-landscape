@@ -163,7 +163,7 @@ impl Renderer {
     }
 
     fn draw_flower(&self, ctx: &mut RenderContext, name: &str, hour: i8) {
-        let local_time = ctx.instant.to_zoned(TimeZone::system());
+        let local_time = ctx.instant.to_zoned_datetime(TimeZone::system());
         let mut time = local_time.with().time(time(hour, 0, 0, 0)).build().unwrap();
         if time < local_time {
             time = time.checked_add(SignedDuration::from_hours(24)).unwrap();
